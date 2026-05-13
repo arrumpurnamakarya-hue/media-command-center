@@ -75,42 +75,37 @@ const fetchContentsAndStats = async () => {
   try {
     setLoadingContents(true);
     
-    // 1. Ambil data contents (yang sudah ada di kode Anda)
-    const { data: contents } = await supabase
-      .from('contents')
-      .select('*')
-      .order('publish_date', { ascending: false });
-
+    // Ambil data konten
+    const { data: contents } = await supabase.from('contents').select('*');
     if (contents) setUpcomingPlans(contents);
 
-    // 2. TAMBAHKAN INI: Ambil data metrik riil
-    const { data: metricsData } = await supabase
+    // --- BAGIAN PENTING: Ambil angka dari tabel metrik ---
+    const { data: metrics, error: mError } = await supabase
       .from('platform_metrics')
-      .select('platform, views, engagement');
+      .select('views, engagement, platform');
 
-    if (metricsData) {
-      // Hitung Total Global
-      const v = metricsData.reduce((acc, curr) => acc + (curr.views || 0), 0);
-      const e = metricsData.reduce((acc, curr) => acc + (curr.engagement || 0), 0);
+    if (metrics && metrics.length > 0) {
+      // 1. Hitung Total Global
+      const v = metrics.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
+      const e = metrics.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
       
       setTotalViews(v);
       setTotalEng(e);
 
-      // Hitung per platform untuk platformStats
-      const getP = (pName: string) => 
-        metricsData.filter(m => m.platform === pName)
-                   .reduce((acc, curr) => acc + (curr.engagement || 0), 0);
+      // 2. Hitung per Platform untuk kartu kecil
+      const sumEng = (p: string) => metrics
+        .filter(m => m.platform === p)
+        .reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
 
       setPlatformStats({
-        meta: getP('meta'),
-        tiktok: getP('tiktok'),
-        x: getP('x_twitter'), // sesuaikan key-nya dengan PLATFORM_CONFIG
-        yt: getP('yt_shorts')
+        meta: sumEng('meta'),
+        tiktok: sumEng('tiktok'),
+        x: sumEng('x_twitter'),
+        yt: sumEng('yt_shorts')
       });
     }
-
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error("Error fetching metrics:", err);
   } finally {
     setLoadingContents(false);
   }
