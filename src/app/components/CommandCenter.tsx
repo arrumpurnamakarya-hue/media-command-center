@@ -53,8 +53,8 @@ export default function CommandCenter() {
   const [statusUpdating, setStatusUpdating] = useState(false);
 
   // Metrik Akumulasi Dinamis
-  const [totalViews, setTotalViews] = useState(28400);
-  const [totalEng, setTotalEng] = useState(4200);
+  const [totalViews, setTotalViews] = useState(0);
+  const [totalEng, setTotalEng] = useState(0);
 
   // Form Planning State
   const [formTitle, setFormTitle] = useState('');
@@ -89,8 +89,8 @@ export default function CommandCenter() {
 
       const mockTrend = Array.from({ length: 30 }, (_, i) => ({
         day: `H${i + 1}`,
-        eng: Math.floor(Math.random() * 400) + 200,
-        views: Math.floor(Math.random() * 2000) + 1000
+        eng: 0,
+        views: 0
       }));
       setChartData(mockTrend);
 
