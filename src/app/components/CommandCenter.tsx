@@ -403,7 +403,12 @@ export default function CommandCenter() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  <MonthlyGoals />
+                  <MonthlyGoals
+                  isDarkMode={isDarkMode}
+                  upcomingPlans={upcomingPlans}
+                  wpCount={wpCount}
+                  />
+                  
                 </div>
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}><TargetTracker /></div>
               </div>
