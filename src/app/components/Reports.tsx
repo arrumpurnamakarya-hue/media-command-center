@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, Printer, Search } from 'lucide-react';
 
-// Ikon Medsos Resmi
+// Vektor SVG Resmi Platform
 const PlatformIcons = {
   Meta: () => <svg className="w-3 h-3 text-[#1877F2] fill-current inline-block mr-1" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
   TikTok: () => <svg className="w-3 h-3 text-[#ff0050] fill-current inline-block mr-1" viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.923 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/></svg>,
@@ -31,7 +31,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     { value: '10', label: 'November' }, { value: '11', label: 'Desember' },
   ];
 
-  // 1. FILTER KONTEN BERDASARKAN PENCARIAN, TAHUN & BULAN
+  // 1. FILTER KONTEN (Pencarian + Tahun + Bulan)
   const filteredContents = useMemo(() => {
     return contents.filter(item => {
       const matchesSearch = (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,10 +41,8 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
         return matchesSearch && selectedYear === 'All' && selectedMonth === 'All';
       }
       
-      // Memecah string tanggal secara aman (Format: YYYY-MM-DD)
       const dateParts = item.publish_date.split('-');
       const itemYear = dateParts[0];
-      // Mengonversi bulan "05" menjadi indeks 4 (Mei) agar sinkron dengan value dropdown
       const itemMonthIndex = String(parseInt(dateParts[1], 10) - 1); 
 
       const matchesYear = selectedYear === 'All' || itemYear === selectedYear;
@@ -56,12 +54,12 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
 
   // 2. RUMUS KALKULASI MURNI (IDENTIK DENGAN RUMUS DASHBOARD)
   const summaryMetrics = useMemo(() => {
-    // Kita langsung jumlahkan seluruh item yang lolos filter tanpa memedulikan status Posted/Draft
-    const totalReach = filteredContents.reduce((sum, item) => sum + (parseInt(item.views) || 0), 0);
-    const totalEng = filteredContents.reduce((sum, item) => sum + (parseInt(item.engagement) || 0), 0);
-    const postedCount = filteredContents.length;
+    // Menggunakan parseInt persis seperti baris 56-58 di CommandCenter.tsx Anda
+    const totalReach = filteredContents.reduce((sum, item) => sum + (parseInt(item.views || 0) || 0), 0);
+    const totalEng = filteredContents.reduce((sum, item) => sum + (parseInt(item.engagement || 0) || 0), 0);
+    const postedCount = filteredContents.filter(item => item.pub_status === 'Posted').length;
     
-    // Mencari pilar terbanyak
+    // Pilar utama
     const pillarCounts: { [key: string]: number } = {};
     filteredContents.forEach(c => {
       const p = c.pillar || 'Strategic';
@@ -91,7 +89,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* GAYA CETAK */}
       <style>{`@media print { aside, header, nav, button, .print\\:hidden { display: none !important; } body, html, main { background-color: #ffffff !important; color: #000000 !important; padding: 0 !important; margin: 0 !important; width: 100% !important; } .border { border-color: #e5e7eb !important; box-shadow: none !important; } }`}</style>
 
       {/* KOP CETAK PDF */}
@@ -115,14 +112,14 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
           <h2 className={`text-xl font-black tracking-tight ${textTitle} flex items-center gap-2`}>
             <FileText className="text-emerald-500" size={22} /> LAPORAN PERFORMA STRATEGIS
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Periode Strategis: 2026 — 2031 • Akumulasi Tersinkronisasi</p>
+          <p className="text-xs text-gray-500 mt-1">Periode Strategis: 2026 — 2031 • Akumulasi Data Master</p>
         </div>
         <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-sm active:scale-95 transition-all">
-          <Printer size={14} className="inline mr-1.5" /> EKSPOR PDF
+          EKSPOR PDF
         </button>
       </div>
 
-      {/* KARTU ATAS (DIJAMIN SINKRON DENGAN DASHBOARD) */}
+      {/* KARTU STATISTIK ATAS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:mt-4">
         <div className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
           <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Total Konten Tayang</span>
@@ -174,7 +171,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
         </div>
       </div>
 
-      {/* DAFTAR RINCIAN KONTEN BAWAH */}
+      {/* DAFTAR KONTEN */}
       <div className="space-y-3 print:mt-6">
         <div className="flex justify-between items-center px-1">
           <h3 className={`text-sm font-bold uppercase tracking-widest ${textTitle} print:text-gray-900`}>Daftar Rincian Performa Konten</h3>
@@ -187,19 +184,21 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
           </div>
         ) : (
           filteredContents.map((item, index) => {
-            // Ekstraksi nilai murni menggunakan parseInt persis seperti Dashboard
-            const reachVal = parseInt(item.views) || 0;
-            const metaVal = parseInt(item.meta) || 0;
-            const tiktokVal = parseInt(item.tiktok) || 0;
-            const xVal = parseInt(item.x) || 0;
-            const ytVal = parseInt(item.yt) || 0;
-            const totalVal = parseInt(item.engagement) || 0;
+            // Membaca persis nilai murni numerik kolom database aslimu
+            const reachVal = parseInt(item.views || 0) || 0;
+            const metaVal = parseInt(item.meta_eng || 0) || 0;
+            const tiktokVal = parseInt(item.tiktok_eng || 0) || 0;
+            const xVal = parseInt(item.x_eng || 0) || 0;
+            const ytVal = parseInt(item.yt_eng || 0) || 0;
+            const totalVal = parseInt(item.engagement || 0) || 0;
 
             return (
               <div key={item.id || index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard} print:bg-white print:border-gray-200 print:py-3 print:px-4`}>
                 <div className="space-y-1 max-w-md">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-black border border-emerald-500/20 uppercase print:border-none print:px-0 print:text-gray-900">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase print:border-none print:px-0 print:text-gray-900 ${
+                      item.pub_status === 'Posted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                    }`}>
                       {item.pub_status || 'Draft'}
                     </span>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">• {item.pillar || 'Strategic'}</span>
@@ -208,7 +207,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
                   <p className="text-[10px] text-gray-500">📅 {item.publish_date}</p>
                 </div>
 
-                {/* Deretan Metrik dengan Ikon Asli */}
+                {/* Matriks Platform Riil */}
                 <div className="flex items-center gap-2 flex-wrap md:justify-end">
                   <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
                     <span className="text-[8px] uppercase font-bold text-gray-500 block">Reach</span>
