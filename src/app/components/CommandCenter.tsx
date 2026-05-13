@@ -408,7 +408,7 @@ export default function CommandCenter() {
                   upcomingPlans={upcomingPlans}
                   wpCount={wpCount}
                   />
-                  
+
                 </div>
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}><TargetTracker /></div>
               </div>
@@ -510,7 +510,8 @@ export default function CommandCenter() {
 
           {/* TAB RECAP TERINTEGRASI */}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
-          {activeTab === 'reports' && <Reports />}
+          {activeTab === 'reports' && ( <Reports isDarkMode={isDarkMode} contents={upcomingPlans} />
+        )}
 
         </main>
 
