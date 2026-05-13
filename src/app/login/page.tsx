@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '../lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, Loader2, AlertCircle, Sparkles } from 'lucide-react';
@@ -33,8 +34,15 @@ export default function LoginPage() {
         
         {/* Logo & Branding */}
         <div className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-[#008234] rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-green-900/30">
-            PKB
+          {/* WADAH LOGO KOTAK */}
+          <div className="mx-auto w-20 h-20 relative rounded-2xl overflow-hidden shadow-xl shadow-green-900/30 bg-[#008234]">
+            <Image 
+              src="/logo.png"         // ⬅️ GANTI dengan path logo Anda, contoh: /images/logo.png
+              alt="Logo Resmi" 
+              fill 
+              className="object-contain p-1.5"
+              priority                 // Prioritas load karena elemen pertama
+            />
           </div>
           <div className="space-y-1">
             <h1 className="text-2xl font-black tracking-tight text-white uppercase">Command Center</h1>
@@ -60,13 +68,14 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1">Alamat Email</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#008234] transition-colors" size={16} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008234] transition-colors" size={16} />
                 <input 
-                  required type="email" 
+                  required 
+                  type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@mediacenter.com"
-                  className="w-full bg-[#0b0d10] border border-gray-800 text-white pl-12 pr-6 py-4 rounded-2xl outline-none focus:border-[#008234] transition-all font-bold text-sm" 
+                  placeholder="mediacenter@pkbgarut.id"
+                  className="w-full bg-gray-100 border border-gray-200 text-gray-900 pl-12 pr-6 py-4 rounded-2xl outline-none focus:border-[#008234] focus:ring-1 focus:ring-[#008234] transition-all font-bold text-sm placeholder:text-gray-400" 
                 />
               </div>
             </div>
@@ -74,13 +83,14 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1">Kata Sandi</label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#008234] transition-colors" size={16} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#008234] transition-colors" size={16} />
                 <input 
-                  required type="password" 
+                  required 
+                  type="password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-[#0b0d10] border border-gray-800 text-white pl-12 pr-6 py-4 rounded-2xl outline-none focus:border-[#008234] transition-all font-bold text-sm" 
+                  className="w-full bg-gray-100 border border-gray-200 text-gray-900 pl-12 pr-6 py-4 rounded-2xl outline-none focus:border-[#008234] focus:ring-1 focus:ring-[#008234] transition-all font-bold text-sm placeholder:text-gray-400" 
                 />
               </div>
             </div>
