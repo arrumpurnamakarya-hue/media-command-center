@@ -82,7 +82,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     const yearLabel = selectedYear !== 'All' ? selectedYear : '2026-2031';
     
     if (selectedMonth === 'All' && selectedYear === 'All') {
-      return 'Periode Konsolidasi (2026 — 2031)';
+      return 'Periode (2026 — 2031)';
     }
     return `Bulan ${monthLabel} ${yearLabel}`;
   }, [selectedMonth, selectedYear]);
@@ -143,7 +143,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
               Laporan Kinerja Distribusi Konten
             </h1>
             <p className="text-xs font-extrabold text-emerald-600 tracking-wider uppercase mt-0.5">
-              PKB Media Center • Command Center
+              DPC PKB KAB. GARUT Media Center • Command Center
             </p>
           </div>
           <div className="text-right">
