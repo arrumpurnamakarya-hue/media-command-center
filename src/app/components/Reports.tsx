@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   FileText, Printer, Calendar, Search, Filter, 
-  Sparkles, TrendingUp, Award, Zap, BarChart3 
+  Sparkles, TrendingUp, Award 
 } from 'lucide-react';
 
 interface ReportsProps {
@@ -12,6 +12,7 @@ interface ReportsProps {
 
 export default function Reports({ isDarkMode = true, contents = [] }: ReportsProps) {
   const [selectedYear, setSelectedYear] = useState<string>('All');
+  // Mengatur default tampilan ke bulan berjalan (Bulan Mei = indeks '4') atau 'All'
   const [selectedMonth, setSelectedMonth] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
@@ -73,13 +74,26 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     return { totalReach, totalEng, postedCount, topPillar };
   }, [filteredContents]);
 
-  // --- 4. HANDLER AI & PDF ---
+  // --- 4. TEKS PERIODE CETAK DINAMIS ---
+  const printPeriodText = useMemo(() => {
+    const monthLabel = selectedMonth !== 'All' 
+      ? months.find(m => m.value === selectedMonth)?.label 
+      : 'Keseluruhan';
+    const yearLabel = selectedYear !== 'All' ? selectedYear : '2026-2031';
+    
+    if (selectedMonth === 'All' && selectedYear === 'All') {
+      return 'Periode Konsolidasi (2026 — 2031)';
+    }
+    return `Bulan ${monthLabel} ${yearLabel}`;
+  }, [selectedMonth, selectedYear]);
+
+  // --- 5. HANDLER AI & PDF ---
   const handleGenerateAIReport = () => {
     setIsGeneratingAI(true);
     setAiInsight(null);
     setTimeout(() => {
       setAiInsight(
-        `Analisis Strategis: Konten dengan pilar "${summaryMetrics.topPillar}" memberikan kontribusi jangkauan terbesar (${Math.round((summaryMetrics.totalReach / 1000))}K views). Efektivitas distribusi pada platform Meta dan TikTok menunjukkan tren positif. Disarankan untuk mempertahankan konsistensi narasi pada periode berikutnya guna menjaga momentum engagement.`
+        `Analisis Strategis: Konten dengan pilar "${summaryMetrics.topPillar}" memberikan kontribusi jangkauan terbesar. Efektivitas distribusi pada platform Meta dan TikTok menunjukkan tren positif. Disarankan untuk mempertahankan konsistensi narasi pada periode berikutnya guna menjaga momentum engagement.`
       );
       setIsGeneratingAI(false);
     }, 1500);
@@ -93,9 +107,60 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
   const textTitle = isDarkMode ? 'text-white' : 'text-gray-900';
 
   return (
-    <div className="space-y-6 animate-fadeIn print:bg-white print:p-0">
+    <div className="space-y-6 animate-fadeIn">
       
-      {/* HEADER & CONTROLS */}
+      {/* INJEKSI GAYA CETAK GLOBAL (PRO PRINT OPTIMIZATION)
+        Menyembunyikan secara paksa topbar, tombol aksi, dan elemen navigasi induk di PDF.
+      */}
+      <style>{`
+        @media print {
+          /* Sembunyikan bilah sisi, header atas induk, dan semua tombol interaktif */
+          aside, header, nav, button, .print\\:hidden {
+            display: none !important;
+          }
+          /* Memaksa latar belakang putih bersih dan menghilangkan jarak berlebih */
+          body, html, main {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+          }
+          /* Hilangkan bayangan dan ubah batas kartu menjadi abu-abu halus untuk cetak tinta */
+          .border {
+            border-color: #e5e7eb !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
+
+      {/* HEADER RESMI KHUSUS CETAK PDF (Hanya Muncul di Dokumen Cetak)
+      */}
+      <div className="hidden print:block border-b-2 border-gray-900 pb-4 mb-6">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 uppercase">
+              Laporan Kinerja Distribusi Konten
+            </h1>
+            <p className="text-xs font-extrabold text-emerald-600 tracking-wider uppercase mt-0.5">
+              PKB Media Center • Command Center
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block">
+              Dokumen Eksekutif
+            </span>
+            <span className="text-sm font-black text-gray-900 uppercase block">
+              Progress Report
+            </span>
+            <span className="text-xs font-bold text-emerald-600 block mt-0.5">
+              {printPeriodText}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      {/* HEADER & CONTROLS ANTARMUKA WEB (Sembunyi saat Cetak) */}
       <div className={`p-6 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard} print:hidden`}>
         <div>
           <h2 className={`text-xl font-black tracking-tight ${textTitle} flex items-center gap-2`}>
@@ -126,26 +191,28 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
 
       {/* AI INSIGHT BOX */}
       {aiInsight && (
-        <div className="p-6 rounded-3xl bg-purple-900/10 border border-purple-500/30 animate-fadeIn print:border-gray-300 print:bg-white">
+        <div className="p-6 rounded-3xl bg-purple-900/10 border border-purple-500/30 animate-fadeIn print:border-gray-300 print:bg-white print:mt-4">
           <div className="flex items-start gap-3">
-            <Sparkles className="text-purple-400 mt-1" size={18} />
+            <Sparkles className="text-purple-400 mt-1 print:text-purple-700" size={18} />
             <div className="space-y-1">
-              <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest">AI Executive Summary</h4>
-              <p className="text-xs text-gray-300 leading-relaxed print:text-black">{aiInsight}</p>
+              <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest print:text-purple-800">
+                AI Executive Summary
+              </h4>
+              <p className="text-xs text-gray-300 leading-relaxed print:text-gray-900">{aiInsight}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* RINGKASAN EKSEKUTIF CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:mt-4">
         {[
           { label: 'Total Konten Tayang', val: summaryMetrics.postedCount, sub: 'Naskah Terdistribusi', color: 'text-emerald-500' },
           { label: 'Akumulasi Jangkauan', val: summaryMetrics.totalReach.toLocaleString('id-ID'), sub: 'Total Views Global', color: 'text-blue-500' },
           { label: 'Total Interaksi', val: summaryMetrics.totalEng.toLocaleString('id-ID'), sub: 'Likes, Reaksi & Share', color: 'text-amber-500' },
           { label: 'Pilar Utama', val: summaryMetrics.topPillar, sub: 'Dominasi Konten', color: 'text-purple-500', isPillar: true },
         ].map((m, i) => (
-          <div key={i} className={`p-5 rounded-2xl border ${bgCard}`}>
+          <div key={i} className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
             <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1">{m.label}</span>
             <div className={`font-roboto text-2xl font-black tracking-tight ${m.color} ${m.isPillar ? 'text-lg font-sans truncate' : ''}`}>
               {m.val}
@@ -155,7 +222,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
         ))}
       </div>
 
-      {/* FILTER SEARCH & PERIOD */}
+      {/* FILTER SEARCH & PERIOD (Sembunyi saat Cetak) */}
       <div className={`p-5 rounded-2xl border ${bgCard} print:hidden`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative flex items-center">
@@ -176,7 +243,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
               onChange={(e) => setSelectedYear(e.target.value)}
               className={`w-full pl-12 pr-4 py-3 rounded-xl border text-xs font-bold appearance-none outline-none cursor-pointer ${bgInput}`}
             >
-              {availableYears.map(year => <option key={year} value={year}>{year === 'All' ? 'Semua' : year}</option>)}
+              {availableYears.map(year => <option key={year} value={year}>{year === 'All' ? 'Semua Tahun' : year}</option>)}
             </select>
           </div>
 
@@ -194,33 +261,35 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
       </div>
 
       {/* PERFORMA KONTEN LOG */}
-      <div className="space-y-3">
-        <h3 className={`text-sm font-bold uppercase tracking-widest px-1 ${textTitle}`}>Log Performa Konten</h3>
+      <div className="space-y-3 print:mt-6">
+        <h3 className={`text-sm font-bold uppercase tracking-widest px-1 ${textTitle} print:text-gray-900`}>
+          Daftar Rincian Performa Konten
+        </h3>
         {filteredContents.map((item, index) => (
-          <div key={index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${bgCard}`}>
+          <div key={index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${bgCard} print:bg-white print:border-gray-200 print:py-3 print:px-4`}>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-black border border-emerald-500/20 uppercase tracking-widest">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-black border border-emerald-500/20 uppercase tracking-widest print:border-none print:px-0 print:text-gray-900">
                   {item.pub_status || 'Draft'}
                 </span>
-                <span className="text-[10px] font-bold text-gray-500 uppercase">{item.pillar}</span>
+                <span className="text-[10px] font-bold text-gray-500 uppercase">• {item.pillar}</span>
               </div>
-              <h4 className={`text-sm font-bold tracking-tight ${textTitle}`}>{item.title}</h4>
+              <h4 className={`text-sm font-bold tracking-tight ${textTitle} print:text-gray-900`}>{item.title}</h4>
               <p className="text-[10px] text-gray-500 font-medium">📅 {item.publish_date}</p>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap md:justify-end">
               {[
-                { label: 'Reach', val: item.views, color: 'text-emerald-500' },
-                { label: 'Meta', val: item.meta_eng, color: 'text-white' },
-                { label: 'TikTok', val: item.tiktok_eng, color: 'text-white' },
-                { label: 'X', val: item.x_eng, color: 'text-white' },
-                { label: 'Shorts', val: item.yt_eng, color: 'text-white' },
-                { label: 'Total', val: item.engagement, color: 'text-emerald-400', isTotal: true },
+                { label: 'Reach', val: item.views, color: 'text-emerald-500 print:text-gray-900' },
+                { label: 'Meta', val: item.meta_eng, color: 'text-white print:text-gray-800' },
+                { label: 'TikTok', val: item.tiktok_eng, color: 'text-white print:text-gray-800' },
+                { label: 'X', val: item.x_eng, color: 'text-white print:text-gray-800' },
+                { label: 'Shorts', val: item.yt_eng, color: 'text-white print:text-gray-800' },
+                { label: 'Total', val: item.engagement, color: 'text-emerald-400 print:text-emerald-700', isTotal: true },
               ].map((stat, si) => (
-                <div key={si} className={`px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] ${stat.isTotal ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-gray-500/5'}`}>
+                <div key={si} className={`px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] ${stat.isTotal ? 'bg-emerald-500/10 border-emerald-500/20 print:bg-emerald-50' : 'bg-gray-500/5 print:bg-transparent'}`}>
                   <span className="text-[8px] uppercase font-bold text-gray-500 block">{stat.label}</span>
-                  <span className={`font-roboto text-xs font-black ${stat.color} ${isDarkMode ? '' : 'print:text-black'}`}>
+                  <span className={`font-roboto text-xs font-black ${stat.color}`}>
                     {(Number(stat.val) || 0).toLocaleString('id-ID')}
                   </span>
                 </div>
