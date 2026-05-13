@@ -1,13 +1,24 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from './contexts/AuthContext';
+import { Inter, Roboto } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
+// Mengatur font untuk antarmuka (UI)
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
-export const metadata: Metadata = {
-  title: 'PKB Media Center',
-  description: 'Command Center Relawan Faiz',
+// Mengatur font khusus untuk ketegasan angka (Metrik)
+const roboto = Roboto({ 
+  weight: ['400', '500', '700', '900'],
+  subsets: ['latin'],
+  variable: '--font-roboto',
+  display: 'swap',
+});
+
+export const metadata = {
+  title: 'Media Center - Command Center',
+  description: 'Pusat Kendali Strategi dan Distribusi Konten',
 };
 
 export default function RootLayout({
@@ -16,11 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
-      <body className={inter.className}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+    <html lang="id" className={`${inter.variable} ${roboto.variable}`}>
+      {/* Menggunakan font Inter sebagai standar dasar seluruh teks UI */}
+      <body className="font-sans bg-[#0b0d10] text-white antialiased">
+        {children}
       </body>
     </html>
   );
