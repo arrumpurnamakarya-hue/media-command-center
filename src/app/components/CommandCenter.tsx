@@ -67,6 +67,7 @@ export default function CommandCenter() {
   const [formProdStatus, setFormProdStatus] = useState('Drafting');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [platformStats, setPlatformStats] = useState({ meta: 0, tiktok: 0, x: 0, yt: 0 });
 
   const fetchContentsAndStats = async () => {
     try {
