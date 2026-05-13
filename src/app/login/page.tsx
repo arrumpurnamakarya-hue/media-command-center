@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push('/'); // Lempar ke dashboard jika sukses
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'Gagal masuk. Periksa email/password.');
     } finally {
@@ -32,16 +32,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0b0d10] flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md space-y-8">
         
-        {/* Logo & Branding */}
+        {/* Logo - Tampil bersih tanpa box hijau yang menutupi */}
         <div className="text-center space-y-4">
-          {/* WADAH LOGO KOTAK */}
-          <div className="mx-auto w-20 h-20 relative rounded-2xl overflow-hidden shadow-xl shadow-green-900/30 bg-[#008234]">
+          <div className="mx-auto w-28 h-28 relative">
             <Image 
-              src="/logo.png"         // ⬅️ GANTI dengan path logo Anda, contoh: /images/logo.png
+              src="/logo.png"         // ⬅️ Sesuaikan path logo Anda jika di folder lain, contoh: /images/logo.png
               alt="Logo Resmi" 
               fill 
-              className="object-contain p-1.5"
-              priority                 // Prioritas load karena elemen pertama
+              className="object-contain"
+              priority
             />
           </div>
           <div className="space-y-1">
@@ -106,7 +105,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-[10px] text-gray-600 font-bold tracking-widest uppercase">
-          &copy; 2026 Media Center Command System
+          &copy; 2026 DPC PKB GARUT | Media Center Command System
         </p>
       </div>
     </div>
