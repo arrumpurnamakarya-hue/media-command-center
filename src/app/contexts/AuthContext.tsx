@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 
-// Tambahkan 'loading' ke dalam tipe data
 const AuthContext = createContext<{ 
   user: User | null; 
   loading: boolean;
@@ -16,19 +15,16 @@ const AuthContext = createContext<{
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); // Mulai dengan status loading
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Cek sesi saat ini
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-      setLoading(false); // Selesai cek, matikan loading
+      setLoading(false);
     };
-
     initAuth();
 
-    // Dengarkan perubahan login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
