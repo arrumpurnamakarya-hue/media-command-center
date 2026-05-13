@@ -44,7 +44,8 @@ export default function CommandCenter() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [lang, setLang] = useState<'ID' | 'EN'>('ID');
   const [showNotifications, setShowNotifications] = useState(false);
-  
+  const [contents, setContents] = useState<any[]>([]);
+
   // States Data Riil
   const [upcomingPlans, setUpcomingPlans] = useState<ContentPlan[]>([]);
   const [loadingContents, setLoadingContents] = useState(true);
@@ -478,9 +479,8 @@ const fetchContentsAndStats = async () => {
     )}
           {/* TAB RECAP TERINTEGRASI */}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
-          {activeTab === 'reports' && (
-            <Reports isDarkMode={isDarkMode} contents={upcomingPlans as any[]} />
-          )}
+          {activeTab === 'reports' && ( <Reports isDarkMode={isDarkMode} contents={upcomingPlans as any[]} />
+        )}
 
         </main>
 
