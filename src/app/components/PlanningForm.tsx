@@ -40,10 +40,10 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
 
   // Daftar Pilar Konten Lengkap (Termasuk Commemorative Day)
   const pillarsList = [
-    'Strategic',
-    'Educational',
-    'Informative',
-    'Programmatic',
+    'Education',
+    'Promotion',
+    'Entertainment',
+    'Information',
     'Commemorative Day' // <-- Pilar baru yang diinjeksi
   ];
 
