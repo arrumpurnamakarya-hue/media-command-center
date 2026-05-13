@@ -284,10 +284,10 @@ export default function CommandCenter() {
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   {[
                     { label: 'Website', icon: <Globe size={16} className="text-emerald-500" />, val: wpCount, sub: 'ARTIKEL AKTIF' },
-                    { label: 'Meta', icon: <BrandIcons.Meta />, val: '824', sub: 'INTERAKSI' },
-                    { label: 'TikTok', icon: <BrandIcons.TikTok />, val: '312', sub: 'INTERAKSI' },
-                    { label: 'X', icon: <BrandIcons.X />, val: '195', sub: 'INTERAKSI' },
-                    { label: 'YT Shorts', icon: <BrandIcons.YT />, val: '88', sub: 'INTERAKSI' },
+                    { label: 'Meta', icon: <BrandIcons.Meta />, val: '0', sub: 'INTERAKSI' },
+                    { label: 'TikTok', icon: <BrandIcons.TikTok />, val: '0', sub: 'INTERAKSI' },
+                    { label: 'X', icon: <BrandIcons.X />, val: '0', sub: 'INTERAKSI' },
+                    { label: 'YT Shorts', icon: <BrandIcons.YT />, val: '0', sub: 'INTERAKSI' },
                   ].map((p, idx) => (
                     <div key={idx} className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col justify-between`}>
                       <div className="flex justify-between items-center mb-2"><p className="text-[9px] font-bold text-gray-400 uppercase">{p.label}</p>{p.icon}</div>
