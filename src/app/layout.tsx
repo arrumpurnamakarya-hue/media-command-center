@@ -1,14 +1,15 @@
 import './globals.css';
 import { Inter, Roboto } from 'next/font/google';
+import { AuthProvider } from './contexts/AuthContext'; // 1. Impor AuthProvider
 
-// Mengatur font untuk antarmuka (UI)
+// Konfigurasi font antarmuka (UI)
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
 });
 
-// Mengatur font khusus untuk ketegasan angka (Metrik)
+// Konfigurasi font khusus ketegasan angka (Metrik)
 const roboto = Roboto({ 
   weight: ['400', '500', '700', '900'],
   subsets: ['latin'],
@@ -28,9 +29,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={`${inter.variable} ${roboto.variable}`}>
-      {/* Menggunakan font Inter sebagai standar dasar seluruh teks UI */}
       <body className="font-sans bg-[#0b0d10] text-white antialiased">
-        {children}
+        {/* 2. Bungkus seluruh aplikasi dengan AuthProvider agar state sesi terhubung */}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
