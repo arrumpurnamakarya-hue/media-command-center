@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 
@@ -16,30 +16,46 @@ const AuthContext = createContext<{
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isInitializing = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
+      // Mencegah balap eksekusi (race conditions) ganda di Vercel
+      if (isInitializing.current) return;
+      isInitializing.current = true;
+
       try {
-        // Memastikan proses pengambilan sesi aman dari crash
+        // Strategi Fallback: Paksa buka kuncian loading jika Supabase hang/timeout setelah 3 detik
+        const timeoutId = setTimeout(() => {
+          if (mounted && loading) {
+            console.warn("Supabase session timeout fallback triggered.");
+            setLoading(false);
+          }
+        }, 3000);
+
         const { data: { session }, error } = await supabase.auth.getSession();
+        clearTimeout(timeoutId);
+
         if (error) throw error;
         
         if (mounted) {
           setUser(session?.user ?? null);
+          setLoading(false);
         }
       } catch (err) {
-        console.error("Kesalahan sinkronisasi sesi Supabase:", err);
-        if (mounted) setUser(null);
-      } finally {
-        // WAJIB DIEKSEKUSI: Matikan loading apa pun hasil akhirnya
-        if (mounted) setLoading(false);
+        console.error("Gagal verifikasi sesi:", err);
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
       }
     };
 
     initAuth();
 
+    // Mendaftar listener yang aman tanpa memicu deadlock panggilan baru
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
         setUser(session?.user ?? null);
