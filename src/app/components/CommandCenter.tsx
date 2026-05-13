@@ -70,49 +70,51 @@ export default function CommandCenter() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [platformStats, setPlatformStats] = useState({ meta: 0, tiktok: 0, x: 0, yt: 0 });
 
-  const fetchContentsAndStats = async () => {
-    try {
-      setLoadingContents(true);
-      const { data: contents } = await supabase
-        .from('contents')
-        .select('*')
-        .order('publish_date', { ascending: false });
+  // Di dalam fetchContentsAndStats baris 74
+const fetchContentsAndStats = async () => {
+  try {
+    setLoadingContents(true);
+    
+    // 1. Ambil data contents (yang sudah ada di kode Anda)
+    const { data: contents } = await supabase
+      .from('contents')
+      .select('*')
+      .order('publish_date', { ascending: false });
+
+    if (contents) setUpcomingPlans(contents);
+
+    // 2. TAMBAHKAN INI: Ambil data metrik riil
+    const { data: metricsData } = await supabase
+      .from('platform_metrics')
+      .select('platform, views, engagement');
+
+    if (metricsData) {
+      // Hitung Total Global
+      const v = metricsData.reduce((acc, curr) => acc + (curr.views || 0), 0);
+      const e = metricsData.reduce((acc, curr) => acc + (curr.engagement || 0), 0);
       
-      if (contents) {
-        setUpcomingPlans(contents);
-        
-        // 1. Akumulasi Global (Tetap Mempertahankan Fitur Asli)
-        const calcViews = contents.reduce((acc: number, curr: any) => acc + (Number(curr.views) || 0), 0);
-        const calcEng = contents.reduce((acc: number, curr: any) => acc + (Number(curr.engagement) || 0), 0);
-        if (calcViews > 0) setTotalViews(calcViews);
-        if (calcEng > 0) setTotalEng(calcEng);
+      setTotalViews(v);
+      setTotalEng(e);
 
-        // 2. Injeksi Akumulasi Spesifik Platform (Tanpa Mengganggu Struktur Lain)
-        setPlatformStats({
-          meta: contents.reduce((acc: number, curr: any) => acc + (Number(curr.meta_eng) || 0), 0),
-          tiktok: contents.reduce((acc: number, curr: any) => acc + (Number(curr.tiktok_eng) || 0), 0),
-          x: contents.reduce((acc: number, curr: any) => acc + (Number(curr.x_eng) || 0), 0),
-          yt: contents.reduce((acc: number, curr: any) => acc + (Number(curr.yt_eng) || 0), 0),
-        });
-      }
+      // Hitung per platform untuk platformStats
+      const getP = (pName: string) => 
+        metricsData.filter(m => m.platform === pName)
+                   .reduce((acc, curr) => acc + (curr.engagement || 0), 0);
 
-      const { count } = await supabase.from('articles').select('*', { count: 'exact', head: true });
-      if (count !== null) setWpCount(count);
-
-      const mockTrend = Array.from({ length: 30 }, (_, i) => ({
-        day: `H${i + 1}`,
-        eng: 0,
-        views: 0
-      }));
-      setChartData(mockTrend);
-
-      fetch('/api/sync-wordpress').catch(() => {});
-    } catch (err) {
-      console.error("Gagal memuat data:", err);
-    } finally {
-      setLoadingContents(false);
+      setPlatformStats({
+        meta: getP('meta'),
+        tiktok: getP('tiktok'),
+        x: getP('x_twitter'), // sesuaikan key-nya dengan PLATFORM_CONFIG
+        yt: getP('yt_shorts')
+      });
     }
-  };
+
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingContents(false);
+  }
+};
 
   useEffect(() => { fetchContentsAndStats(); }, []);
 
