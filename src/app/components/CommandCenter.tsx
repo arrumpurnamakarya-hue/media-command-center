@@ -12,8 +12,7 @@ import TargetTracker from './TargetTracker';
 import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
 import Reports from './Reports';
-import { Share2 } from 'lucide-react';
-import { MessageSquare } from 'lucide-react';
+import PlanningForm from './PlanningForm';
 
 const BrandIcons = {
   Meta: () => <svg className="w-5 h-5 text-[#1877F2]" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
@@ -466,48 +465,8 @@ export default function CommandCenter() {
 
           {/* TAB PLANNING */}
           {activeTab === 'planning' && (
-            <div className="animate-fadeIn max-w-4xl mx-auto py-4">
-              <div className={`p-8 rounded-[40px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-2xl space-y-8 relative overflow-hidden`}>
-                <div className="space-y-2"><h2 className={`text-3xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Perencanaan Naskah</h2><p className="text-sm text-gray-500 font-medium">Instruksikan arahan kreatif dan muatan teks langsung ke cloud.</p></div>
-                {showSuccess && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-5 rounded-3xl flex items-center space-x-3 animate-bounce"><CheckCircle2 size={24} /><span className="font-black text-sm">Naskah terkirim ke panel komando editor!</span></div>}
-                
-                <form onSubmit={handleSavePlanning} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Tanggal Rilis</label><input required type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} outline-none focus:border-[#008234] font-bold text-sm`} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Waktu Penayangan</label><input required type="time" value={formTime} onChange={(e) => setFormTime(e.target.value)} className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} outline-none focus:border-[#008234] font-bold text-sm`} /></div>
-                  </div>
-                  <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Judul Agenda / Naskah</label><input required type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="Contoh: Rilis Sikap Resmi Organisasi..." className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} outline-none focus:border-[#008234] font-bold text-sm`} /></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Pilar Muatan</label><select value={formPillar} onChange={(e) => setFormPillar(e.target.value)} className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} font-bold text-sm outline-none`}><option value="Educational">Educational</option><option value="Informative">Informative</option><option value="Entertaining">Entertaining</option><option value="Promotional">Promotional</option></select></div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Sasaran Platform</label>
-                      <div className="flex flex-wrap gap-2">
-                        {['Meta', 'TikTok', 'X', 'Website', 'YT Shorts'].map(p => (
-                          <button key={p} type="button" onClick={() => setFormPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])} className={`px-4 py-2.5 rounded-xl text-[10px] font-black border transition-all ${formPlatforms.includes(p) ? 'bg-[#008234] text-white border-transparent' : isDarkMode ? 'bg-[#0b0d10] text-gray-400 border-gray-800' : 'bg-white text-gray-500 border-gray-200'}`}>{p}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Status Awal Rencana</label>
-                    <select value={formProdStatus} onChange={(e) => setFormProdStatus(e.target.value)} className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} font-bold text-sm outline-none`}>
-                      <option value="Drafting">📝 Drafting (Kerangka Ide)</option>
-                      <option value="Editing/Design">🎨 Editing/Design (Sedang Dikerjakan Tim)</option>
-                      <option value="Ready to Post">🚀 Ready to Post (Siap Mengudara)</option>
-                      <option value="Completed">✅ Completed (Langsung Terbit & Siap Direkap)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Briefing Editor (Instruksi Visual & Hook)</label><textarea rows={4} value={formCopywriting} onChange={(e) => setFormCopywriting(e.target.value)} placeholder="Berikan kerangka ide, instruksi potongan video, atau kalimat pancingan pertama..." className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} font-bold text-sm outline-none resize-none`} /></div>
-                  <div className="space-y-2"><label className="text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">Naskah Caption Matang</label><textarea rows={4} value={formCaption} onChange={(e) => setFormCaption(e.target.value)} placeholder="Teks publikasi final yang siap disalin oleh tim beserta tagar pelengkap..." className={`w-full px-6 py-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200'} font-bold text-sm outline-none resize-none`} /></div>
-                  
-                  <button disabled={isSubmitting} type="submit" className="w-full bg-[#008234] hover:bg-[#006b2a] text-white py-5 rounded-3xl font-black text-xs shadow-xl shadow-green-900/20 transition-all transform active:scale-95 flex items-center justify-center space-x-2">
-                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <><Sparkles size={18} /><span>DISTRIBUSIKAN BLUEPRINT NASKAH</span></>}
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
+    <PlanningForm isDarkMode={isDarkMode} onPlanAdded={fetchContentsAndStats} />
+    )}
           {/* TAB RECAP TERINTEGRASI */}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
           {activeTab === 'reports' && ( <Reports isDarkMode={isDarkMode} contents={upcomingPlans} />
