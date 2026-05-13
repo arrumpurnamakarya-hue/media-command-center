@@ -79,10 +79,20 @@ export default function CommandCenter() {
       
       if (contents) {
         setUpcomingPlans(contents);
-        const calcViews = contents.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
-        const calcEng = contents.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
+        
+        // 1. Akumulasi Global (Tetap Mempertahankan Fitur Asli)
+        const calcViews = contents.reduce((acc: number, curr: any) => acc + (Number(curr.views) || 0), 0);
+        const calcEng = contents.reduce((acc: number, curr: any) => acc + (Number(curr.engagement) || 0), 0);
         if (calcViews > 0) setTotalViews(calcViews);
         if (calcEng > 0) setTotalEng(calcEng);
+
+        // 2. Injeksi Akumulasi Spesifik Platform (Tanpa Mengganggu Struktur Lain)
+        setPlatformStats({
+          meta: contents.reduce((acc: number, curr: any) => acc + (Number(curr.meta_eng) || 0), 0),
+          tiktok: contents.reduce((acc: number, curr: any) => acc + (Number(curr.tiktok_eng) || 0), 0),
+          x: contents.reduce((acc: number, curr: any) => acc + (Number(curr.x_eng) || 0), 0),
+          yt: contents.reduce((acc: number, curr: any) => acc + (Number(curr.yt_eng) || 0), 0),
+        });
       }
 
       const { count } = await supabase.from('articles').select('*', { count: 'exact', head: true });
@@ -279,24 +289,53 @@ export default function CommandCenter() {
                 </div>
               </div>
 
-              {/* KARTU PLATFORM */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{t.platformInt}</h4>
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  {[
-                    { label: 'Website', icon: <Globe size={16} className="text-emerald-500" />, val: wpCount, sub: 'ARTIKEL AKTIF' },
-                    { label: 'Meta', icon: <BrandIcons.Meta />, val: '0', sub: 'INTERAKSI' },
-                    { label: 'TikTok', icon: <BrandIcons.TikTok />, val: '0', sub: 'INTERAKSI' },
-                    { label: 'X', icon: <BrandIcons.X />, val: '0', sub: 'INTERAKSI' },
-                    { label: 'YT Shorts', icon: <BrandIcons.YT />, val: '0', sub: 'INTERAKSI' },
-                  ].map((p, idx) => (
-                    <div key={idx} className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col justify-between`}>
-                      <div className="flex justify-between items-center mb-2"><p className="text-[9px] font-bold text-gray-400 uppercase">{p.label}</p>{p.icon}</div>
-                      <div className="flex items-baseline justify-between mt-1"><h3 className={`text-xl font-black tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{p.val}</h3><span className="text-[8px] font-black text-gray-500">{p.sub}</span></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* KARTU DISTRIBUSI PLATFORM MEDSOS */}
+<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+  {[
+    { 
+      label: 'Website', 
+      icon: <span className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-500/10 text-blue-500 font-black text-[10px]">W</span>, 
+      val: wpCount, 
+      sub: 'ARTIKEL AKTIF' 
+    },
+    { 
+      label: 'Meta', 
+      icon: (
+        <div className="flex items-center gap-1.5">
+          <svg className="w-4 h-4 text-blue-600 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          <svg className="w-4 h-4 text-pink-500 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        </div>
+      ), 
+      val: platformStats.meta, 
+      sub: 'INTERAKSI' 
+    },
+    { label: 'TikTok', icon: <span>🎵</span>, val: platformStats.tiktok, sub: 'INTERAKSI' },
+    { label: 'X', icon: <span>𝕏</span>, val: platformStats.x, sub: 'INTERAKSI' },
+    { label: 'YT Shorts', icon: <span>▶</span>, val: platformStats.yt, sub: 'INTERAKSI' },
+  ].map((p, idx) => (
+    <div 
+      key={idx} 
+      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+        isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'
+      }`}
+    >
+      {/* Teks label memakai Inter (Default) */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-gray-400 tracking-wide">{p.label}</span>
+        {p.icon}
+      </div>
+
+      <div>
+        {/* ANGKA KHUSUS PAKAI ROBOTO */}
+        <div className="font-roboto text-2xl font-black tracking-tight">
+          {p.val.toLocaleString('id-ID')}
+        </div>
+        {/* Teks sub memakai Inter (Default) */}
+        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mt-0.5">{p.sub}</span>
+      </div>
+    </div>
+  ))}
+</div>
 
               {/* GRAFIK & TARGETS */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

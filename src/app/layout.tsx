@@ -1,15 +1,15 @@
 import './globals.css';
 import { Inter, Roboto } from 'next/font/google';
-import { AuthProvider } from './contexts/AuthContext'; // 1. Impor AuthProvider
+import { AuthProvider } from './contexts/AuthContext';
 
-// Konfigurasi font antarmuka (UI)
+// Inter untuk antarmuka teks biasa (UI)
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
 });
 
-// Konfigurasi font khusus ketegasan angka (Metrik)
+// Roboto khusus untuk angka/metrik
 const roboto = Roboto({ 
   weight: ['400', '500', '700', '900'],
   subsets: ['latin'],
@@ -28,9 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+    // Menyuntikkan kedua variabel CSS ke seluruh dokumen
     <html lang="id" className={`${inter.variable} ${roboto.variable}`}>
+      {/* font-sans otomatis memicu Inter untuk semua teks standar */}
       <body className="font-sans bg-[#0b0d10] text-white antialiased">
-        {/* 2. Bungkus seluruh aplikasi dengan AuthProvider agar state sesi terhubung */}
         <AuthProvider>
           {children}
         </AuthProvider>
