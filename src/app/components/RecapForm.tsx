@@ -1,12 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Save, Loader2, Link } from 'lucide-react';
+import { Save, Loader2, BarChart3, Link } from 'lucide-react';
 
-// Langkah 1: Tambahkan 'Interface' agar TypeScript mengenali data kiriman dari CommandCenter
 interface RecapFormProps {
-  isDarkMode?: boolean;
-  onRecapSuccess?: () => void;
+  isDarkMode: boolean;
+  onRecapSuccess: () => Promise<void>;
 }
 
 export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps) {
@@ -14,6 +13,7 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(false);
   
+  // State sederhana: hanya views, engagement, dan link
   const [stats, setStats] = useState({ 
     views: 0, 
     engagement: 0, 
@@ -22,6 +22,7 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
 
   useEffect(() => {
     async function fetchPending() {
+      // Mengambil naskah yang sudah ada di database
       const { data } = await supabase
         .from('contents')
         .select('id, title, publish_date')
@@ -36,6 +37,7 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
     if (!selectedId) return alert("Pilih naskah terlebih dahulu!");
     setLoading(true);
     
+    // Hanya update kolom global views dan engagement
     const { error } = await supabase
       .from('contents')
       .update({
@@ -52,35 +54,27 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
       alert("Statistik Global Berhasil Direkap!");
       setStats({ views: 0, engagement: 0, link: '' });
       setSelectedId('');
-      
-      // Langkah 2: Panggil fungsi penyegaran angka di dashboard
-      if (onRecapSuccess) onRecapSuccess();
+      await onRecapSuccess();
     }
     setLoading(false);
   };
 
   return (
     <div className="max-w-3xl mx-auto p-4 animate-fadeIn">
-      {/* Tampilan sekarang adaptif terhadap isDarkMode */}
-      <div className={`border rounded-[35px] p-8 shadow-2xl space-y-8 transition-colors ${
-        isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'
-      }`}>
+      <div className="bg-[#12151a] border border-gray-800 rounded-[35px] p-8 shadow-2xl space-y-8">
         <div className="text-center">
-          <h2 className={`text-2xl font-black uppercase tracking-tighter ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>Rekapitulasi Konten</h2>
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Rekapitulasi Konten</h2>
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Input performa global naskah mengudara</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Dropdown Pilih Naskah */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Pilih Naskah</label>
             <select 
               value={selectedId} 
               onChange={(e) => setSelectedId(e.target.value)} 
-              className={`w-full border p-4 rounded-2xl outline-none focus:border-[#008234] font-bold text-sm ${
-                isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-              }`}
+              className="w-full bg-[#0b0d10] border border-gray-800 text-white p-4 rounded-2xl outline-none focus:border-[#008234] font-bold text-sm"
             >
               <option value="">-- Pilih Judul Konten --</option>
               {contents.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
@@ -88,6 +82,7 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Input Views */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Total Views</label>
               <input 
@@ -95,12 +90,11 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
                 value={stats.views} 
                 onChange={e => setStats({...stats, views: parseInt(e.target.value) || 0})} 
                 placeholder="0"
-                className={`w-full border p-4 rounded-2xl font-black text-lg outline-none focus:border-[#008234] ${
-                  isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-                }`} 
+                className="w-full bg-[#0b0d10] border border-gray-800 p-4 rounded-2xl text-white font-black text-lg outline-none focus:border-[#008234]" 
               />
             </div>
 
+            {/* Input Engagement */}
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Total Engagement</label>
               <input 
@@ -108,13 +102,12 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
                 value={stats.engagement} 
                 onChange={e => setStats({...stats, engagement: parseInt(e.target.value) || 0})} 
                 placeholder="0"
-                className={`w-full border p-4 rounded-2xl font-black text-lg outline-none focus:border-[#008234] ${
-                  isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-                }`} 
+                className="w-full bg-[#0b0d10] border border-gray-800 p-4 rounded-2xl text-white font-black text-lg outline-none focus:border-[#008234]" 
               />
             </div>
           </div>
 
+          {/* Input Link */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 text-blue-500">Tautan Live (URL)</label>
             <div className="relative group">
@@ -124,9 +117,7 @@ export default function RecapForm({ isDarkMode, onRecapSuccess }: RecapFormProps
                 value={stats.link} 
                 onChange={e => setStats({...stats, link: e.target.value})} 
                 placeholder="https://..."
-                className={`w-full border pl-12 pr-6 py-4 rounded-2xl font-bold text-xs outline-none focus:border-blue-500 ${
-                  isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-                }`} 
+                className="w-full bg-[#0b0d10] border border-gray-800 pl-12 pr-6 py-4 rounded-2xl text-white font-bold text-xs outline-none focus:border-blue-500" 
               />
             </div>
           </div>
