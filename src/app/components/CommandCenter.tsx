@@ -106,10 +106,22 @@ const fetchContentsAndStats = async () => {
     }
   } catch (err) {
     console.error("Error fetching metrics:", err);
-  } finally {
-    setLoadingContents(false);
-  }
-};
+    } finally {
+      setLoadingContents(false);
+      
+      // --- TAMBAHKAN INJEKSI API WORDPRESS DI SINI (BARIS 111/112) ---
+      try {
+        const wpRes = await fetch('https://pkbgarut.id/wp-json/wp/v2/posts?per_page=1&status=publish');
+        if (wpRes.ok) {
+          const totalPosts = wpRes.headers.get('X-WP-Total');
+          if (totalPosts) setWpCount(Number(totalPosts));
+        }
+      } catch (wpErr) {
+        console.error("Gagal sinkronisasi WordPress:", wpErr);
+      }
+      // --- AKHIR INJEKSI ---
+    }
+  };
 
   useEffect(() => { fetchContentsAndStats(); }, []);
 
@@ -466,8 +478,9 @@ const fetchContentsAndStats = async () => {
     )}
           {/* TAB RECAP TERINTEGRASI */}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
-          {activeTab === 'reports' && ( <Reports isDarkMode={isDarkMode} contents={upcomingPlans} />
-        )}
+          {activeTab === 'reports' && (
+            <Reports isDarkMode={isDarkMode} contents={upcomingPlans as any[]} />
+          )}
 
         </main>
 
