@@ -196,16 +196,19 @@ export default function RecapForm({
     }));
 
     const { error: upsertError } = await supabase
-      .from("platform_metrics") // <-- GANTI jika nama tabel Anda beda
-      .upsert(rows, { onConflict: "content_id,platform" });
+  .from("platform_metrics")
+  .upsert(rows, { onConflict: "content_id,platform" });
 
-    setSaving(false);
-    if (upsertError) {
-      setError(upsertError.message);
-    } else {
-      await onRecapSuccess?.(); // Trigger refresh di parent / dashboard
-      // Optional: reset atau toast
-    }
+setSaving(false);
+
+if (upsertError) {
+  setError(upsertError.message);
+  alert("Gagal menyimpan: " + upsertError.message); // Tambahkan ini
+} else {
+  alert("Data berhasil disimpan!"); // Tambahkan ini
+  await onRecapSuccess?.(); 
+  setSelectedId(""); // Reset pilihan setelah berhasil
+}
   };
 
   /* ----------------------- RENDER ----------------------- */
