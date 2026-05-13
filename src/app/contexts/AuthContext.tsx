@@ -3,23 +3,35 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 
-const AuthContext = createContext<{ user: User | null; signOut: () => Promise<void> }>({
+// Tambahkan 'loading' ke dalam tipe data
+const AuthContext = createContext<{ 
+  user: User | null; 
+  loading: boolean;
+  signOut: () => Promise<void> 
+}>({
   user: null,
+  loading: true,
   signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // Mulai dengan status loading
 
   useEffect(() => {
     // Cek sesi saat ini
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+      setLoading(false); // Selesai cek, matikan loading
+    };
+
+    initAuth();
 
     // Dengarkan perubahan login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -30,7 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
