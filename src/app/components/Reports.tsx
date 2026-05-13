@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  FileText, Download, Filter, CheckCircle2, 
+  FileText, Download, CheckCircle2, 
   Loader2, Sparkles, Globe, Brain, ArrowRight, Eye, MousePointer2
 } from 'lucide-react';
 
@@ -32,7 +32,7 @@ export default function Reports() {
     recommendedPillar: string;
   } | null>(null);
 
-  // 1. Generator Daftar Bulan 2026 - 2031
+  // Generator Daftar Bulan 2026 - 2031
   const generatePeriods = () => {
     const years = [2026, 2027, 2028, 2029, 2030, 2031];
     const monthNames = [
@@ -60,9 +60,7 @@ export default function Reports() {
           .select('*')
           .order('publish_date', { ascending: false });
 
-        if (contentData) {
-          setContents(contentData);
-        }
+        if (contentData) setContents(contentData);
 
         const { count } = await supabase
           .from('articles')
@@ -78,17 +76,17 @@ export default function Reports() {
     fetchReportData();
   }, []);
 
-  // Logika Filtering & Akumulasi Metrik Berdasarkan Pilihan
+  // Filter Data & Akumulasi Metrik
   const filteredContents = contents.filter(item => {
     if (selectedMonth === 'all') return true;
-    return item.publish_date?.startsWith(selectedMonth);
+    return item.publish_date && item.publish_date.startsWith(selectedMonth);
   });
 
   useEffect(() => {
     const calcViews = filteredContents.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
     const calcEng = filteredContents.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
     setMetrics({ views: calcViews, engagement: calcEng });
-    setAiStatus('idle'); // Reset AI jika filter berubah
+    setAiStatus('idle');
   }, [selectedMonth, contents]);
 
   const postedCount = filteredContents.filter(c => c.pub_status === 'Posted').length;
@@ -97,11 +95,11 @@ export default function Reports() {
     setAiStatus('analyzing');
     setTimeout(() => {
       setAiReport({
-        summary: `Analisis strategis menunjukkan performa stabil pada periode ini. Dengan akumulasi ${metrics.views.toLocaleString()} views, fokus berikutnya adalah konversi interaksi.`,
+        summary: `Analisis strategis periode ini menunjukkan efektivitas pada jangkauan massa digital. Dengan total ${metrics.views.toLocaleString()} views, Command Center telah berhasil mengamankan awareness yang stabil.`,
         nextMonthStrategy: [
-          "Optimalkan konten video pendek untuk meningkatkan jangkauan.",
-          "Gunakan data jam tayang terpopuler untuk rilis naskah utama.",
-          "Perkuat pilar edukasi untuk meningkatkan loyalitas audiens."
+          "Optimalkan konten video pendek untuk meningkatkan jangkauan organik.",
+          "Gunakan data jam tayang terpopuler untuk rilis naskah utama pimpinan.",
+          "Perkuat pilar konten edukasi untuk menjaga loyalitas basis massa."
         ],
         recommendedPillar: "Informative"
       });
@@ -109,14 +107,23 @@ export default function Reports() {
     }, 1500);
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-400 space-y-3">
+        <Loader2 className="animate-spin text-[#008234]" size={32} />
+        <span className="text-xs font-bold uppercase tracking-wider italic">Menyusun Data Laporan...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto pb-10 print:p-0 print:space-y-6">
       
-      {/* HEADER CONTROL DENGAN DROPDOWN DINAMIS */}
+      {/* HEADER CONTROL */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 bg-white dark:bg-[#12151a] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm print:hidden">
         <div className="space-y-1">
           <h2 className="text-2xl font-black tracking-tight dark:text-white text-gray-900">Laporan Strategis Eksekutif</h2>
-          <p className="text-xs text-gray-500 font-bold">Periode: {selectedMonth === 'all' ? 'Semua Waktu' : selectedMonth}</p>
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Pusat Kendali Media Center</p>
         </div>
         <div className="flex items-center space-x-3">
           <select 
@@ -137,9 +144,10 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* HEADER KHUSUS CETAK */}
       <div className="hidden print:block border-b-2 border-gray-900 pb-4 mb-6">
         <h1 className="text-2xl font-black uppercase tracking-tight text-gray-900">Laporan Komando Redaksional</h1>
-        <p className="text-xs text-gray-600">Periode Laporan: {selectedMonth}</p>
+        <p className="text-xs text-gray-600">Media Strategist Platform - Periode: {selectedMonth}</p>
       </div>
 
       {/* METRIK UTAMA */}
@@ -168,10 +176,7 @@ export default function Reports() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-100 dark:border-gray-800 pb-5">
             <div className="flex items-center space-x-3">
               <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl text-[#008234]"><Brain size={24} /></div>
-              <div>
-                <h3 className="font-black text-base dark:text-white uppercase tracking-tight">Laporan Analisis Strategi AI</h3>
-                <p className="text-xs text-gray-500 font-medium">Berdasarkan data filter yang dipilih saat ini.</p>
-              </div>
+              <div><h3 className="font-black text-base dark:text-white uppercase tracking-tight">Analisis Strategi AI</h3><p className="text-xs text-gray-500 font-medium">Berdasarkan data performa pada periode yang dipilih.</p></div>
             </div>
             {aiStatus !== 'ready' && (
               <button 
@@ -184,7 +189,6 @@ export default function Reports() {
               </button>
             )}
           </div>
-
           {aiStatus === 'ready' && aiReport && (
             <div className="space-y-6 animate-fadeIn">
               <div className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
@@ -193,10 +197,7 @@ export default function Reports() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {aiReport.nextMonthStrategy.map((s, i) => (
-                  <div key={i} className="flex items-start space-x-2.5 p-3.5 bg-gray-50 dark:bg-[#0b0d10] rounded-xl border border-gray-100 dark:border-gray-800">
-                    <ArrowRight size={14} className="text-[#008234] mt-0.5 flex-shrink-0" />
-                    <p className="text-xs font-bold text-gray-600 dark:text-gray-300">{s}</p>
-                  </div>
+                  <div key={i} className="flex items-start space-x-2.5 p-3.5 bg-gray-50 dark:bg-[#0b0d10] rounded-xl border border-gray-100 dark:border-gray-800"><ArrowRight size={14} className="text-[#008234] mt-0.5 flex-shrink-0" /><p className="text-xs font-bold text-gray-600 dark:text-gray-300">{s}</p></div>
                 ))}
               </div>
             </div>
@@ -207,8 +208,8 @@ export default function Reports() {
       {/* KATALOG DATA */}
       <div className="bg-white dark:bg-[#12151a] rounded-[35px] border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-          <h3 className="font-bold text-xs dark:text-white uppercase tracking-wider">Log Katalog & Akumulasi Performa</h3>
-          <span className="text-[10px] bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-lg font-bold text-gray-500">{filteredContents.length} Arsip</span>
+          <h3 className="font-bold text-[10px] dark:text-white uppercase tracking-widest">Log Katalog & Akumulasi Performa</h3>
+          <span className="text-[10px] bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-lg font-bold text-gray-500">{filteredContents.length} Item</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -223,17 +224,15 @@ export default function Reports() {
             </thead>
             <tbody className="text-xs font-bold divide-y divide-gray-50 dark:divide-gray-800/50">
               {filteredContents.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-400 italic">Tidak ada data untuk periode ini.</td>
-                </tr>
+                <tr><td colSpan={5} className="text-center py-10 text-gray-400 italic">Tidak ada catatan data pada periode ini.</td></tr>
               ) : (
                 filteredContents.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                    <td className="py-4 px-6 dark:text-gray-200">{c.title}</td>
-                    <td className="py-4 px-6"><span className="text-[9px] text-[#008234] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded font-black uppercase">#{c.pillar}</span></td>
+                    <td className="py-4 px-6 dark:text-gray-200">{c.title || 'Tanpa Judul'}</td>
+                    <td className="py-4 px-6"><span className="text-[9px] text-[#008234] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded font-black uppercase">#{c.pillar || 'General'}</span></td>
                     <td className="py-4 px-6 font-mono text-blue-600">{c.views?.toLocaleString() || 0}</td>
                     <td className="py-4 px-6 font-mono text-purple-600">{c.engagement?.toLocaleString() || 0}</td>
-                    <td className="py-4 px-6"><span className="px-2 py-0.5 rounded-full text-[9px] bg-emerald-50 text-emerald-700">{c.pub_status}</span></td>
+                    <td className="py-4 px-6"><span className={`px-2 py-0.5 rounded-full text-[9px] ${c.pub_status === 'Posted' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{c.pub_status || 'Draft'}</span></td>
                   </tr>
                 ))
               )}
