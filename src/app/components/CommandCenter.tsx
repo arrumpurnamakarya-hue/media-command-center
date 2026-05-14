@@ -40,15 +40,13 @@ export interface ContentPlan {
   x_engagement?: number;
   yt_engagement?: number;
 }
-  const defaultChartData = [
-  { day: 'Senin', eng: 0, views: 0 },
-  { day: 'Selasa', eng: 0, views: 0 },
-  { day: 'Rabu', eng: 0, views: 0 },
-  { day: 'Kamis', eng: 0, views: 0 },
-  { day: 'Jumat', eng: 0, views: 0 },
-  { day: 'Sabtu', eng: 0, views: 0 },
-  { day: 'Minggu', eng: 0, views: 0 },
-];
+  const defaultChartData = Array.from({ length: 30 }, (_, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() - (29 - i));
+  // Menghasilkan format tanggal singkat, misal: "15 Mei" atau "15/05"
+  const dayStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  return { day: dayStr, eng: 0, views: 0 };
+});
 export default function CommandCenter() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
