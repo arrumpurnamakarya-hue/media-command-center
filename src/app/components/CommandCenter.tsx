@@ -7,7 +7,7 @@ import {
   Globe, Sparkles, ArrowUpRight, Sun, Moon, LogOut, Bell, Search, Loader2, CheckCircle2,
   Eye, MousePointer2, Send, Info, ChevronRight, Languages
 } from 'lucide-react';
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, AreaChart, Area, } from 'recharts';
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import TargetTracker from './TargetTracker';
 import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
@@ -21,7 +21,6 @@ const BrandIcons = {
   YT: () => <svg className="w-5 h-5 text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
 };
 
-// KOREKSI: Memastikan penamaan kolom database aslimu konsisten
 export interface ContentPlan {
   id: string;
   title: string;
@@ -40,11 +39,6 @@ export interface ContentPlan {
   tiktok_engagement?: number;
   x_engagement?: number;
   yt_engagement?: number;
-  // Fallback opsional jika backend terkadang menggunakan format pendek
-  meta_eng?: number;
-  tiktok_eng?: number;
-  x_eng?: number;
-  yt_eng?: number;
 }
 
 export default function CommandCenter() {
@@ -86,18 +80,15 @@ export default function CommandCenter() {
     try {
       setLoadingContents(true);
       
-      // Ambil data konten secara utuh
-      const { data: contents } = await supabase.from('contents').select('*');
-      if (contents) {
-        setUpcomingPlans(contents);
-        setAllContents(contents);
-      }
+      // 1. Ambil seluruh data master naskah
+      const { data: rawContents } = await supabase.from('contents').select('*');
 
-      // Ambil angka dari tabel metrik
-      const { data: metrics, error: mError } = await supabase
+      // 2. Ambil metrik platform DENGAN menyertakan content_id (KUNCI UTAMA)
+      const { data: metrics } = await supabase
         .from('platform_metrics')
-        .select('views, engagement, platform');
+        .select('views, engagement, platform, content_id');
 
+      // 3. Kalkulasi metrik global untuk Dashboard
       if (metrics && metrics.length > 0) {
         const v = metrics.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
         const e = metrics.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
@@ -116,8 +107,48 @@ export default function CommandCenter() {
           yt: sumEng('yt_shorts')
         });
       }
+
+      // 4. PENGGABUNGAN DATA (MERGE): Menyuntikkan metrik ke setiap objek naskah
+      if (rawContents) {
+        const enrichedContents = rawContents.map(item => {
+          // Cari baris metrik yang terhubung ke ID naskah ini
+          const itemMetrics = metrics ? metrics.filter(m => m.content_id === item.id) : [];
+
+          // Fungsi pembantu untuk mengambil nilai engagement spesifik platform
+          const getEng = (plat: string) => {
+            const found = itemMetrics.find(m => m.platform === plat);
+            return found ? Number(found.engagement) : 0;
+          };
+
+          // Fungsi pembantu untuk mengambil nilai views spesifik platform
+          const getViews = (plat: string) => {
+            const found = itemMetrics.find(m => m.platform === plat);
+            return found ? Number(found.views) : 0;
+          };
+
+          // Hitung total mandiri per naskah jika di tabel utama kosong
+          const calcTotalViews = itemMetrics.reduce((sum, m) => sum + Number(m.views || 0), 0);
+          const calcTotalEng = itemMetrics.reduce((sum, m) => sum + Number(m.engagement || 0), 0);
+
+          return {
+            ...item,
+            // Injeksi metrik platform agar langsung terdeteksi oleh tab Reports
+            meta_engagement: getEng('meta'),
+            tiktok_engagement: getEng('tiktok'),
+            x_engagement: getEng('x_twitter'),
+            yt_engagement: getEng('yt_shorts'),
+            // Update views & engagement baris agar sinkron
+            views: calcTotalViews > 0 ? calcTotalViews : (item.views || 0),
+            engagement: calcTotalEng > 0 ? calcTotalEng : (item.engagement || 0)
+          };
+        });
+
+        setUpcomingPlans(enrichedContents);
+        setAllContents(enrichedContents);
+      }
+
     } catch (err) {
-      console.error("Error fetching metrics:", err);
+      console.error("Error fetching contents and metrics:", err);
     } finally {
       setLoadingContents(false);
       
@@ -162,7 +193,8 @@ export default function CommandCenter() {
       
       if (error) throw error;
       
-      setUpcomingPlans(prev => prev.map(item => item.id === id ? { ...item, prod_status: newProdStatus, pub_status: newPubStatus } : item));
+      // Update state lokal dan picu sinkronisasi ulang agar metrik tetap utuh
+      fetchContentsAndStats();
       if (selectedContent) setSelectedContent(prev => prev ? { ...prev, prod_status: newProdStatus, pub_status: newPubStatus } : null);
     } catch (err) {
       alert("Gagal memperbarui status.");
@@ -307,6 +339,7 @@ export default function CommandCenter() {
                 </div>
               </div>
 
+              {/* RENDER PLATFORM DENGAN TAG SVG YANG SUDAH KOREKSI FULL */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {[
                   { 
