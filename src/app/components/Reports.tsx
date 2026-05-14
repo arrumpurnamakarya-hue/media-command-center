@@ -19,7 +19,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
   const [selectedMonth, setSelectedMonth] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // STATE AI: Terintegrasi langsung di dalam layout utama (Inline)
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [isAIGenerating, setIsAIGenerating] = useState(false);
   const [aiReport, setAiReport] = useState<{ exec: string; perf: string; rec: string } | null>(null);
@@ -35,7 +34,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     { value: '10', label: 'November' }, { value: '11', label: 'Desember' },
   ];
 
-  // 1. FILTER KONTEN DINAMIS
   const filteredContents = useMemo(() => {
     return contents.filter(item => {
       const matchesSearch = (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -56,13 +54,11 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     });
   }, [contents, searchQuery, selectedYear, selectedMonth]);
 
-  // 2. KALKULASI RINGKASAN METRIK PERIODE TERPILIH
   const summaryMetrics = useMemo(() => {
     const totalReach = filteredContents.reduce((sum, item) => sum + (parseInt(item.views || 0) || 0), 0);
     const totalEng = filteredContents.reduce((sum, item) => sum + (parseInt(item.engagement || 0) || 0), 0);
     const postedCount = filteredContents.filter(item => item.pub_status === 'Posted').length;
     
-    // Platform dengan traksi tertinggi khusus pada periode tersaring
     let topPlatform = 'Merata';
     let maxPlatEng = 0;
     const platSums = {
@@ -75,7 +71,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
       if (val > maxPlatEng) { maxPlatEng = val; topPlatform = p; }
     });
 
-    // Pilar dengan kemunculan terbanyak
     const pillarCounts: { [key: string]: number } = {};
     filteredContents.forEach(c => {
       const p = c.pillar || 'Strategic';
@@ -91,7 +86,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     return { totalReach, totalEng, postedCount, topPillar, topPlatform, maxPlatEng };
   }, [filteredContents]);
 
-  // Teks Label Periode untuk Cetakan dan Konteks AI
   const printPeriodText = useMemo(() => {
     const monthLabel = selectedMonth !== 'All' ? months.find(m => m.value === selectedMonth)?.label : 'Keseluruhan';
     const yearLabel = selectedYear !== 'All' ? selectedYear : '2026-2031';
@@ -99,7 +93,6 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
     return `Bulan ${monthLabel} ${yearLabel}`;
   }, [selectedMonth, selectedYear]);
 
-  // 3. PEMICU GENERASI LAPORAN AI (INLINE & KONTEKSTUAL)
   const handleGenerateAI = () => {
     setShowAIPanel(true);
     setIsAIGenerating(true);
@@ -109,11 +102,9 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
       const periodLabel = isFiltered ? printPeriodText : 'keseluruhan akumulasi master';
       
       setAiReport({
-        exec: `Laporan eksekutif untuk ${periodLabel} mencatatkan total distribusi sebanyak ${summaryMetrics.postedCount} naskah publikasi tayang. Alur distribusi ini berhasil menembus total jangkauan (reach) sebesar ${summaryMetrics.totalReach.toLocaleString('id-ID')} tayangan global, disertai akumulasi respons audiens sebanyak ${summaryMetrics.totalEng.toLocaleString('id-ID')} interaksi organik. Fokus redaksi terpantau stabil dengan dominasi pengarusutamaan pada pilar strategis ${summaryMetrics.topPillar}.`,
-        
-        perf: `Berdasarkan pemetaan matriks konversi, platform ${summaryMetrics.topPlatform} memimpin penetrasi keterlibatan publik tertinggi dengan menyumbangkan traksi spesifik sebesar ${summaryMetrics.maxPlatEng.toLocaleString('id-ID')} reaksi. Kinerja lintas saluran (cross-platform) menunjukkan efisiensi distribusi yang sehat, di mana keseimbangan antara viralitas visual (Meta/TikTok/Shorts) dan penyampaian gagasan tekstual (X/Twitter) saling melengkapi untuk mempertahankan retensi pesan di berbagai segmen demografi.`,
-        
-        rec: `1. Eskalasi Pilar: Teruskan dominasi pilar ${summaryMetrics.topPillar} sebagai identitas utama, namun sisipkan pilar pendukung pada pertengahan pekan guna memperluas variasi jangkauan.\n2. Replikasi Traksi: Format penyajian yang terbukti sukses pada platform ${summaryMetrics.topPlatform} disarankan untuk direplikasi ke saluran lainnya dengan penyesuaian gaya bahasa lokal.\n3. Optimasi Jadwal: Manfaatkan jeda waktu dengan interaksi tertinggi pada akhir pekan untuk mendistribusikan manifesto atau rilis pers krusial.`
+        exec: `Laporan eksekutif untuk ${periodLabel} mencatatkan total distribusi sebanyak ${summaryMetrics.postedCount} naskah publikasi tayang. Alur distribusi ini berhasil menembus total jangkauan (reach) sebesar ${summaryMetrics.totalReach.toLocaleString('id-ID')} tayangan global, disertai akumulasi respons audiens sebanyak ${summaryMetrics.totalEng.toLocaleString('id-ID')} interaksi organik.`,
+        perf: `Berdasarkan pemetaan matriks konversi, platform ${summaryMetrics.topPlatform} memimpin penetrasi keterlibatan publik tertinggi dengan menyumbangkan traksi spesifik sebesar ${summaryMetrics.maxPlatEng.toLocaleString('id-ID')} reaksi. Kinerja lintas saluran (cross-platform) menunjukkan efisiensi distribusi yang sehat.`,
+        rec: `1. Eskalasi Pilar: Teruskan dominasi pilar ${summaryMetrics.topPillar} sebagai identitas utama.\n2. Replikasi Traksi: Format penyajian platform ${summaryMetrics.topPlatform} disarankan untuk direplikasi ke saluran lainnya.\n3. Optimasi Jadwal: Manfaatkan jeda waktu interaksi tertinggi pada akhir pekan.`
       });
       setIsAIGenerating(false);
     }, 1200);
@@ -125,35 +116,50 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* PENGATURAN GAYA UNTUK HASIL CETAK PDF YANG SEMPURNA */}
+      {/* CSS KHUSUS UNTUK CETAK PDF PREMIUM & BERWARNA */}
       <style>{`
+        @page { 
+          margin: 10mm 15mm; 
+          size: auto;
+        }
         @media print { 
           aside, header, nav, button, .print\\:hidden { display: none !important; } 
-          body, html, main { background-color: #ffffff !important; color: #000000 !important; padding: 0 !important; margin: 0 !important; width: 100% !important; } 
+          body, html, main { 
+            background-color: #ffffff !important; 
+            color: #000000 !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            width: 100% !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important;
+          } 
           .border { border-color: #e5e7eb !important; box-shadow: none !important; } 
-          .print\\:break-inside-avoid { break-inside: avoid; }
-          .print\\:text-black { color: #000000 !important; }
-          .print\\:bg-transparent { background-color: transparent !important; }
-          .print\\:border-gray-300 { border-color: #d1d5db !important; }
+          .print\\:break-inside-avoid { break-inside: avoid !important; }
+          .print\\:bg-emerald-50 { background-color: #ecfdf5 !important; }
+          .print\\:bg-blue-50 { background-color: #eff6ff !important; }
+          .print\\:bg-amber-50 { background-color: #fffbeb !important; }
+          .print\\:text-emerald-700 { color: #047857 !important; }
+          .print\\:text-blue-700 { color: #1d4ed8 !important; }
+          .print\\:text-amber-700 { color: #b45309 !important; }
+          .print\\:border-gray-200 { border-color: #e5e7eb !important; }
         }
       `}</style>
 
       {/* KOP RESMI CETAK PDF */}
-      <div className="hidden print:block border-b-2 border-gray-900 pb-4 mb-6">
+      <div className="hidden print:block border-b-4 border-gray-900 pb-4 mb-8">
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900 uppercase">Laporan Kinerja Distribusi Konten</h1>
-            <p className="text-xs font-extrabold text-emerald-600 tracking-wider uppercase mt-0.5">PKB Media Center • Command Center</p>
+            <h1 className="text-3xl font-black tracking-tighter text-gray-900 uppercase">Executive Performance Report</h1>
+            <p className="text-sm font-black text-emerald-600 tracking-widest uppercase mt-1">PKB Media Center • Command Center Platform</p>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold text-gray-400 uppercase block">Dokumen Eksekutif</span>
-            <span className="text-sm font-black text-gray-900 uppercase block">Progress Report</span>
-            <span className="text-xs font-bold text-emerald-600 block mt-0.5">{printPeriodText}</span>
+            <span className="text-xs font-black text-gray-400 uppercase block tracking-widest">Document ID: #STRAT-2026</span>
+            <span className="text-lg font-black text-gray-900 uppercase block mt-1">{printPeriodText}</span>
           </div>
         </div>
       </div>
       
-      {/* HEADER UTAMA: PANEL KONTROL ATAS */}
+      {/* HEADER UTAMA */}
       <div className={`p-6 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard} print:hidden`}>
         <div>
           <h2 className={`text-xl font-black tracking-tight ${textTitle} flex items-center gap-2`}>
@@ -161,10 +167,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
           </h2>
           <p className="text-xs text-gray-500 mt-1">Periode Strategis: 2026 — 2031 • Akumulasi Data Master</p>
         </div>
-        
-        {/* DERETAN TOMBOL AKSI */}
         <div className="flex items-center gap-3">
-          {/* TOMBOL PEMICU AI (Menyala Mewah) */}
           <button 
             onClick={handleGenerateAI} 
             disabled={isAIGenerating}
@@ -175,180 +178,104 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
             }`}
           >
             <Sparkles className={`w-3.5 h-3.5 ${isAIGenerating ? 'animate-spin' : 'animate-pulse'}`} />
-            {isAIGenerating ? 'MEMPROSES AI...' : showAIPanel ? 'PERBARUI ANALISIS AI' : 'AI GENERATION'}
+            {isAIGenerating ? 'MEMPROSES AI...' : showAIPanel ? 'PERBARUI ANALISIS' : 'AI GENERATION'}
           </button>
-
-          {/* TOMBOL EKSPOR PDF */}
-          <button 
-            onClick={() => window.print()} 
-            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm active:scale-95 transition-all"
-          >
+          <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm active:scale-95 transition-all">
             EKSPOR PDF
           </button>
         </div>
       </div>
 
-      {/* KARTU STATISTIK AKUMULASI */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:mt-4">
+      {/* KARTU STATISTIK AKUMULASI (Colorful in Print) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:mt-4 print:gap-2">
         <div className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
-          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-600">Total Konten Tayang</span>
-          <div className="font-roboto text-2xl font-black text-emerald-500 print:text-black">{summaryMetrics.postedCount}</div>
-          <span className="text-[9px] text-gray-500 block mt-1 uppercase font-bold print:text-gray-500">Naskah Terdistribusi</span>
+          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-400">Total Naskah</span>
+          <div className="font-roboto text-2xl font-black text-emerald-500 print:text-emerald-600">{summaryMetrics.postedCount}</div>
         </div>
         <div className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
-          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-600">Akumulasi Jangkauan</span>
-          <div className="font-roboto text-2xl font-black text-blue-500 print:text-black">{summaryMetrics.totalReach.toLocaleString('id-ID')}</div>
-          <span className="text-[9px] text-gray-500 block mt-1 uppercase font-bold print:text-gray-500">Total Views Global</span>
+          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-400">Total Reach</span>
+          <div className="font-roboto text-2xl font-black text-blue-500 print:text-blue-600">{summaryMetrics.totalReach.toLocaleString('id-ID')}</div>
         </div>
         <div className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
-          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-600">Total Interaksi</span>
-          <div className="font-roboto text-2xl font-black text-amber-500 print:text-black">{summaryMetrics.totalEng.toLocaleString('id-ID')}</div>
-          <span className="text-[9px] text-gray-500 block mt-1 uppercase font-bold print:text-gray-500">Likes, Reaksi & Share</span>
+          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-400">Engagement</span>
+          <div className="font-roboto text-2xl font-black text-amber-500 print:text-amber-600">{summaryMetrics.totalEng.toLocaleString('id-ID')}</div>
         </div>
         <div className={`p-5 rounded-2xl border ${bgCard} print:bg-white print:border-gray-200`}>
-          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-600">Pilar Utama</span>
-          <div className="text-lg font-sans font-black text-purple-500 truncate uppercase print:text-black">{summaryMetrics.topPillar}</div>
-          <span className="text-[9px] text-gray-500 block mt-1 uppercase font-bold print:text-gray-500">Dominasi Konten</span>
+          <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1 print:text-gray-400">Top Pilar</span>
+          <div className="text-lg font-black text-purple-500 truncate uppercase print:text-purple-600">{summaryMetrics.topPillar}</div>
         </div>
       </div>
 
-      {/* BILAH FILTER PENCARIAN & WAKTU */}
       <div className={`p-5 rounded-2xl border ${bgCard} print:hidden`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 text-gray-500" size={16} />
-            <input 
-              type="text" 
-              placeholder="Cari judul atau pilar..." 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border text-xs outline-none ${bgInput}`} 
-            />
+            <input type="text" placeholder="Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full pl-10 pr-4 py-3 rounded-xl border text-xs outline-none ${bgInput}`} />
           </div>
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-[10px] font-bold uppercase">Thn:</span>
-            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className={`w-full pl-12 pr-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer ${bgInput}`}>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer ${bgInput}`}>
               {availableYears.map(y => <option key={y} value={y}>{y === 'All' ? 'Semua Tahun' : y}</option>)}
             </select>
           </div>
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-[10px] font-bold uppercase">Bln:</span>
-            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`w-full pl-12 pr-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer ${bgInput}`}>
+            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer ${bgInput}`}>
               {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* PANEL ANALISIS AI TERTANAM (INLINE) - TERLETAK DI ATAS RINCIAN ARSIP      */}
-      {/* Otomatis Tercetak Sempurna di PDF karena Bagian dari Alur Halaman         */}
-      {/* ========================================================================= */}
+      {/* PANEL ANALISIS AI TERTANAM (Premium Print Quality) */}
       {showAIPanel && (
-        <div className={`p-8 rounded-3xl border transition-all duration-500 print:break-inside-avoid print:mt-6 print:p-0 print:border-none ${
-          isDarkMode ? 'bg-[#12151a] border-emerald-500/30 shadow-xl shadow-emerald-950/10' : 'bg-white border-emerald-600/20 shadow-lg'
-        }`}>
+        <div className={`p-8 rounded-3xl border transition-all duration-500 print:break-inside-avoid print:mt-6 print:p-6 print:border-2 ${
+          isDarkMode ? 'bg-[#12151a] border-emerald-500/30 shadow-xl' : 'bg-white border-emerald-600/20 shadow-lg'
+        } print:bg-white print:border-emerald-200`}>
           
-          {/* Header Internal Seksi AI */}
-          <div className="flex justify-between items-start border-b border-gray-500/10 pb-4 mb-6 print:border-gray-300 print:pb-2 print:mb-4">
+          <div className="flex justify-between items-start border-b border-gray-500/10 pb-4 mb-6 print:border-emerald-100">
             <div>
-              <div className="flex items-center space-x-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest print:text-black">
-                <Sparkles size={13} className="print:hidden" />
-                <span>AI Executive Briefing • {printPeriodText}</span>
+              <div className="flex items-center space-x-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest print:text-emerald-600">
+                <Sparkles size={13} />
+                <span>AI EXECUTIVE STRATEGY • {printPeriodText}</span>
               </div>
-              <h3 className={`text-lg font-black tracking-tight mt-1 ${textTitle} print:text-black`}>Analisis & Proyeksi Performa Distribusi</h3>
+              <h3 className={`text-xl font-black tracking-tight mt-1 ${textTitle} print:text-gray-900`}>Ringkasan Analitik & Proyeksi Redaksi</h3>
             </div>
-            
-            {/* Indikator Status & Tombol Tutup Internal */}
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black bg-emerald-500/10 text-emerald-500 px-2.5 py-1 rounded-lg border border-emerald-500/20 uppercase tracking-wider print:hidden">
-                TERVERIFIKASI
-              </span>
-              <button 
-                onClick={() => setShowAIPanel(false)} 
-                className="text-gray-500 hover:text-gray-300 text-xs font-bold px-2 py-1 rounded hover:bg-gray-800/40 transition-all print:hidden"
-                title="Sembunyikan Panel AI"
-              >
-                ✕
-              </button>
-            </div>
+            <button onClick={() => setShowAIPanel(false)} className="text-gray-500 hover:text-gray-300 text-xs font-bold px-2 py-1 rounded print:hidden">✕</button>
           </div>
 
-          {/* Skenario Animasi Pemuatan Data */}
           {isAIGenerating || !aiReport ? (
-            <div className="py-12 flex flex-col items-center justify-center space-y-3">
-              <RefreshCw className="w-6 h-6 text-emerald-500 animate-spin" />
-              <span className="text-xs font-bold text-gray-400 tracking-widest uppercase animate-pulse">
-                Menyusun Ringkasan Eksekutif Dinamis...
-              </span>
-            </div>
+            <div className="py-12 flex flex-col items-center justify-center space-y-3"><RefreshCw className="w-6 h-6 text-emerald-500 animate-spin" /><span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Generating Strategy...</span></div>
           ) : (
-            /* Layout Rincian Laporan AI Tersusun Rapi */
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs animate-fadeIn">
-              
-              {/* Kolom 1: Ringkasan Eksekutif */}
-              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800/80' : 'bg-gray-50 border-gray-200'} flex flex-col justify-between print:bg-transparent print:border-gray-300 print:p-4`}>
-                <div>
-                  <div className="flex items-center gap-2 text-emerald-500 font-black text-[10px] tracking-widest uppercase mb-3 print:text-black">
-                    <CheckCircle2 size={14} /> <span>Ringkasan Eksekutif</span>
-                  </div>
-                  <p className="font-medium text-gray-300 leading-relaxed text-justify print:text-black">
-                    {aiReport.exec}
-                  </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'} print:bg-emerald-50 print:border-emerald-100`}>
+                <div className="text-emerald-500 font-black text-[10px] uppercase mb-3 flex items-center gap-2 print:text-emerald-700">
+                  <CheckCircle2 size={14} /> Ringkasan Eksekutif
                 </div>
-                <span className="text-[9px] text-gray-500 font-bold block mt-4 pt-3 border-t border-gray-500/10 uppercase tracking-wider print:hidden">
-                  Akurasi Algoritma: 99.4%
-                </span>
+                <p className="font-medium text-gray-300 leading-relaxed text-justify print:text-gray-800">{aiReport.exec}</p>
               </div>
 
-              {/* Kolom 2: Analisis Performa */}
-              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800/80' : 'bg-gray-50 border-gray-200'} flex flex-col justify-between print:bg-transparent print:border-gray-300 print:p-4`}>
-                <div>
-                  <div className="flex items-center gap-2 text-blue-500 font-black text-[10px] tracking-widest uppercase mb-3 print:text-black">
-                    <TrendingUp size={14} /> <span>Analisis Performa</span>
-                  </div>
-                  <p className="font-medium text-gray-300 leading-relaxed text-justify print:text-black">
-                    {aiReport.perf}
-                  </p>
+              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'} print:bg-blue-50 print:border-blue-100`}>
+                <div className="text-blue-500 font-black text-[10px] uppercase mb-3 flex items-center gap-2 print:text-blue-700">
+                  <TrendingUp size={14} /> Analisis Performa
                 </div>
-                <span className="text-[9px] text-blue-500/70 font-bold block mt-4 pt-3 border-t border-gray-500/10 uppercase tracking-wider print:hidden">
-                  Saluran Kunci: {summaryMetrics.topPlatform}
-                </span>
+                <p className="font-medium text-gray-300 leading-relaxed text-justify print:text-gray-800">{aiReport.perf} Dominasi pada saluran {summaryMetrics.topPlatform}.</p>
               </div>
 
-              {/* Kolom 3: Rekomendasi Strategis */}
-              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-amber-500/10' : 'bg-amber-50/40 border-amber-200'} flex flex-col justify-between print:bg-transparent print:border-gray-300 print:p-4`}>
-                <div>
-                  <div className="flex items-center gap-2 text-amber-500 font-black text-[10px] tracking-widest uppercase mb-3 print:text-black">
-                    <Lightbulb size={14} /> <span>Rekomendasi Redaksi</span>
-                  </div>
-                  <div className="font-medium text-amber-100/90 leading-relaxed whitespace-pre-line print:text-black">
-                    {aiReport.rec}
-                  </div>
+              <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-amber-500/10' : 'bg-amber-50/40 border-amber-200'} print:bg-amber-50 print:border-amber-100`}>
+                <div className="text-amber-500 font-black text-[10px] uppercase mb-3 flex items-center gap-2 print:text-amber-700">
+                  <Lightbulb size={14} /> Rekomendasi AI
                 </div>
-                <span className="text-[9px] text-amber-500/70 font-bold block mt-4 pt-3 border-t border-gray-500/10 uppercase tracking-wider print:hidden">
-                  Tindak Lanjut Segera
-                </span>
+                <div className="font-medium text-amber-100/90 leading-relaxed print:text-amber-900">{aiReport.rec}</div>
               </div>
-
             </div>
           )}
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TABEL NASKAH UTAMA: DAFTAR RINCIAN PERFORMA KONTEN                        */}
-      {/* ========================================================================= */}
-      <div className="space-y-3 print:mt-6">
-        <div className="flex justify-between items-center px-1">
-          <h3 className={`text-sm font-bold uppercase tracking-widest ${textTitle} print:text-gray-900`}>Daftar Rincian Performa Konten</h3>
-          <span className="text-xs font-bold text-gray-500">{filteredContents.length} Arsip Tersaring</span>
-        </div>
-
+      {/* TABEL RINCIAN PERFORMA */}
+      <div className="space-y-3 print:mt-8">
+        <h3 className={`text-sm font-black uppercase tracking-widest ${textTitle} px-1 print:text-gray-900 print:mb-4`}>Daftar Rincian Performa Konten</h3>
         {filteredContents.length === 0 ? (
-          <div className={`p-12 text-center rounded-3xl border ${bgCard}`}>
-            <p className="text-xs font-bold text-gray-500">Belum ada arsip performa naskah untuk kriteria filter ini.</p>
-          </div>
+          <div className={`p-12 text-center rounded-3xl border ${bgCard}`}><p className="text-xs font-bold text-gray-500">Tidak ada data.</p></div>
         ) : (
           filteredContents.map((item, index) => {
             const reachVal  = parseInt(item.views || 0) || 0;
@@ -359,44 +286,24 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
             const totalVal  = parseInt(item.engagement || 0) || (metaVal + tiktokVal + xVal + ytVal);
 
             return (
-              <div key={item.id || index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard} print:break-inside-avoid print:bg-white print:border-gray-200 print:py-3 print:px-4`}>
+              <div key={item.id || index} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard} print:break-inside-avoid print:bg-white print:border-gray-200 print:mb-2`}>
                 <div className="space-y-1 max-w-md">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase print:border-none print:px-0 print:text-gray-900 ${
-                      item.pub_status === 'Posted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                    }`}>
-                      {item.pub_status || 'Draft'}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">• {item.pillar || 'Strategic'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase print:border-gray-300 ${item.pub_status === 'Posted' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>{item.pub_status || 'Draft'}</span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">• {item.pillar}</span>
                   </div>
-                  <h4 className={`text-sm font-bold line-clamp-1 ${textTitle} print:text-gray-900`}>{item.title}</h4>
-                  <p className="text-[10px] text-gray-500">📅 {item.publish_date}</p>
+                  <h4 className={`text-sm font-bold ${textTitle} print:text-gray-900`}>{item.title}</h4>
+                  <p className="text-[10px] text-gray-500 font-mono">📅 {item.publish_date}</p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap md:justify-end">
-                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
+                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[65px] print:border-gray-100">
                     <span className="text-[8px] uppercase font-bold text-gray-500 block">Reach</span>
-                    <span className="font-roboto text-xs font-black text-emerald-500 print:text-gray-900">{reachVal.toLocaleString('id-ID')}</span>
+                    <span className="text-xs font-black text-emerald-500 print:text-emerald-700">{reachVal.toLocaleString()}</span>
                   </div>
-                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
-                    <span className="text-[8px] uppercase font-bold text-gray-500 block"><PlatformIcons.Meta /> Meta</span>
-                    <span className="font-roboto text-xs font-black text-white print:text-gray-800">{metaVal.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
-                    <span className="text-[8px] uppercase font-bold text-gray-500 block"><PlatformIcons.TikTok /> TikTok</span>
-                    <span className="font-roboto text-xs font-black text-white print:text-gray-800">{tiktokVal.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
-                    <span className="text-[8px] uppercase font-bold text-gray-500 block"><PlatformIcons.X /> X</span>
-                    <span className="font-roboto text-xs font-black text-white print:text-gray-800">{xVal.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[60px] bg-gray-500/5 print:bg-transparent">
-                    <span className="text-[8px] uppercase font-bold text-gray-500 block"><PlatformIcons.YT /> Shorts</span>
-                    <span className="font-roboto text-xs font-black text-white print:text-gray-800">{ytVal.toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl border border-emerald-500/20 text-center min-w-[60px] bg-emerald-500/10 print:bg-transparent print:border-gray-300">
-                    <span className="text-[8px] uppercase font-bold text-gray-500 block">Total</span>
-                    <span className="font-roboto text-xs font-black text-emerald-400 print:text-black">{totalVal.toLocaleString('id-ID')}</span>
+                  <div className="px-3 py-1.5 rounded-xl border border-gray-500/10 text-center min-w-[65px] print:border-gray-100">
+                    <span className="text-[8px] uppercase font-bold text-gray-500 block">Total Eng</span>
+                    <span className="text-xs font-black text-white print:text-gray-900">{totalVal.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
