@@ -142,7 +142,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-2xl font-black tracking-tighter text-gray-900 uppercase">Performance Report</h1>
-            <p className="text-xs font-black text-emerald-600 tracking-widest uppercase mt-0.5">Media Center • Command Center Platform</p>
+            <p className="text-xs font-black text-emerald-600 tracking-widest uppercase mt-0.5">Media Center DPC PKB GARUT • Command Center Platform</p>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Confidential Document</span>
