@@ -91,7 +91,7 @@ export default function Reports({ isDarkMode = true, contents = [] }: ReportsPro
   const printPeriodText = useMemo(() => {
     const monthLabel = selectedMonth !== 'All' ? months.find(m => m.value === selectedMonth)?.label : 'Keseluruhan';
     const yearLabel = selectedYear !== 'All' ? selectedYear : '2026-2031';
-    if (selectedMonth === 'All' && selectedYear === 'All') return 'Periode Konsolidasi (2026 — 2031)';
+    if (selectedMonth === 'All' && selectedYear === 'All') return 'Periode Aktivasi (2026 — 2031)';
     return `Bulan ${monthLabel} ${yearLabel}`;
   }, [selectedMonth, selectedYear]);
 
