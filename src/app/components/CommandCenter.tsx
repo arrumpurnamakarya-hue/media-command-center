@@ -21,6 +21,7 @@ const BrandIcons = {
   YT: () => <svg className="w-5 h-5 text-[#FF0000]" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
 };
 
+// KOREKSI: Memastikan penamaan kolom database aslimu konsisten
 export interface ContentPlan {
   id: string;
   title: string;
@@ -35,6 +36,15 @@ export interface ContentPlan {
   views?: number;
   engagement?: number;
   live_link?: string;
+  meta_engagement?: number;
+  tiktok_engagement?: number;
+  x_engagement?: number;
+  yt_engagement?: number;
+  // Fallback opsional jika backend terkadang menggunakan format pendek
+  meta_eng?: number;
+  tiktok_eng?: number;
+  x_eng?: number;
+  yt_eng?: number;
 }
 
 export default function CommandCenter() {
@@ -45,6 +55,7 @@ export default function CommandCenter() {
   const [lang, setLang] = useState<'ID' | 'EN'>('ID');
   const [showNotifications, setShowNotifications] = useState(false);
   const [contents, setContents] = useState<any[]>([]);
+  const [allContents, setAllContents] = useState<any[]>([]);
 
   // States Data Riil
   const [upcomingPlans, setUpcomingPlans] = useState<ContentPlan[]>([]);
@@ -53,7 +64,7 @@ export default function CommandCenter() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [selectedContent, setSelectedContent] = useState<ContentPlan | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
-
+  
   // Metrik Akumulasi Dinamis
   const [totalViews, setTotalViews] = useState(0);
   const [totalEng, setTotalEng] = useState(0);
@@ -71,46 +82,45 @@ export default function CommandCenter() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [platformStats, setPlatformStats] = useState({ meta: 0, tiktok: 0, x: 0, yt: 0 });
 
-  // Di dalam fetchContentsAndStats baris 74
-const fetchContentsAndStats = async () => {
-  try {
-    setLoadingContents(true);
-    
-    // Ambil data konten
-    const { data: contents } = await supabase.from('contents').select('*');
-    if (contents) setUpcomingPlans(contents);
-
-    // --- BAGIAN PENTING: Ambil angka dari tabel metrik ---
-    const { data: metrics, error: mError } = await supabase
-      .from('platform_metrics')
-      .select('views, engagement, platform');
-
-    if (metrics && metrics.length > 0) {
-      // 1. Hitung Total Global
-      const v = metrics.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
-      const e = metrics.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
+  const fetchContentsAndStats = async () => {
+    try {
+      setLoadingContents(true);
       
-      setTotalViews(v);
-      setTotalEng(e);
+      // Ambil data konten secara utuh
+      const { data: contents } = await supabase.from('contents').select('*');
+      if (contents) {
+        setUpcomingPlans(contents);
+        setAllContents(contents);
+      }
 
-      // 2. Hitung per Platform untuk kartu kecil
-      const sumEng = (p: string) => metrics
-        .filter(m => m.platform === p)
-        .reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
+      // Ambil angka dari tabel metrik
+      const { data: metrics, error: mError } = await supabase
+        .from('platform_metrics')
+        .select('views, engagement, platform');
 
-      setPlatformStats({
-        meta: sumEng('meta'),
-        tiktok: sumEng('tiktok'),
-        x: sumEng('x_twitter'),
-        yt: sumEng('yt_shorts')
-      });
-    }
-  } catch (err) {
-    console.error("Error fetching metrics:", err);
+      if (metrics && metrics.length > 0) {
+        const v = metrics.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
+        const e = metrics.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
+        
+        setTotalViews(v);
+        setTotalEng(e);
+
+        const sumEng = (p: string) => metrics
+          .filter(m => m.platform === p)
+          .reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
+
+        setPlatformStats({
+          meta: sumEng('meta'),
+          tiktok: sumEng('tiktok'),
+          x: sumEng('x_twitter'),
+          yt: sumEng('yt_shorts')
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching metrics:", err);
     } finally {
       setLoadingContents(false);
       
-      // --- TAMBAHKAN INJEKSI API WORDPRESS DI SINI (BARIS 111/112) ---
       try {
         const wpRes = await fetch('https://pkbgarut.id/wp-json/wp/v2/posts?per_page=1&status=publish');
         if (wpRes.ok) {
@@ -120,7 +130,6 @@ const fetchContentsAndStats = async () => {
       } catch (wpErr) {
         console.error("Gagal sinkronisasi WordPress:", wpErr);
       }
-      // --- AKHIR INJEKSI ---
     }
   };
 
@@ -162,7 +171,6 @@ const fetchContentsAndStats = async () => {
     }
   };
 
-  // KELAS CSS BADGES YANG SUDAH DIKOREKSI PEMBUNGKUSNYA DI RENDER UTAMA
   const getPillarStyles = (pillar: string) => {
     const p = pillar?.toLowerCase() || '';
     if (p.includes('educational')) return `border font-black text-[9px] px-2.5 py-1 rounded-lg ${isDarkMode ? 'bg-blue-950/40 text-blue-400 border-blue-900' : 'bg-blue-50 text-blue-600 border-blue-100'}`;
@@ -272,7 +280,6 @@ const fetchContentsAndStats = async () => {
           {activeTab === 'dashboard' && (
             <div className="animate-fadeIn space-y-8">
               
-              {/* KARTU ATAS DIJAMIN PUTIH SAAT GELAP */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{t.generalPerf}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -300,96 +307,86 @@ const fetchContentsAndStats = async () => {
                 </div>
               </div>
 
-              {/* KARTU DISTRIBUSI PLATFORM MEDSOS KELAS PRO */}
-<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-  {[
-    { 
-      label: 'Website', 
-      // Vektor Kustom Globe / Web (Aman tanpa import Lucide)
-      icon: (
-        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          <path d="M2 12h20"></path>
-        </svg>
-      ), 
-      val: wpCount, 
-      sub: 'ARTIKEL AKTIF' 
-    },
-    { 
-      label: 'Meta', 
-      // Tetap Mempertahankan Susunan Vektor Ganda Asli Meta (FB + IG)
-      icon: (
-        <div className="flex items-center gap-1.5">
-          {/* Logo Facebook Resmi */}
-          <svg className="w-4 h-4 text-[#1877F2] fill-current" viewBox="0 0 24 24">
-            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-          </svg>
-          {/* Logo Instagram Resmi */}
-          <svg className="w-4 h-4 text-[#E4405F] fill-current" viewBox="0 0 24 24">
-            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-          </svg>
-        </div>
-      ), 
-      val: platformStats.meta, 
-      sub: 'INTERAKSI' 
-    },
-    { 
-      label: 'TikTok', 
-      // Vektor Resmi TikTok (Aman tanpa import Lucide)
-      icon: (
-        <svg className="w-4 h-4 text-[#ff0050] fill-current" viewBox="0 0 24 24">
-          <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.923 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/>
-        </svg>
-      ), 
-      val: platformStats.tiktok, 
-      sub: 'INTERAKSI' 
-    },
-    { 
-      label: 'X (Twitter)', 
-      // Vektor Resmi X / Twitter (Aman tanpa import Lucide)
-      icon: (
-        <svg className="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 24 24">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-      ), 
-      val: platformStats.x, 
-      sub: 'INTERAKSI' 
-    },
-    { 
-      label: 'YT Shorts', 
-      // Vektor Resmi YouTube (Aman tanpa import Lucide)
-      icon: (
-        <svg className="w-4 h-4 text-[#FF0000] fill-current" viewBox="0 0 24 24">
-          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 0 0-2.122 2.136C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 0 0 2.122 2.136c1.872.55 9.377.55 9.377.55s7.505 0 9.377-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-        </svg>
-      ), 
-      val: platformStats.yt, 
-      sub: 'INTERAKSI' 
-    },
-  ].map((p, idx) => (
-    <div 
-      key={idx} 
-      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-        isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'
-      }`}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-gray-400 tracking-wide">{p.label}</span>
-        {p.icon}
-      </div>
-      <div>
-        {/* Menjaga Tipografi Angka Roboto Tetap Sempurna */}
-        <div className="font-roboto text-2xl font-black tracking-tight text-white">
-          {p.val.toLocaleString('id-ID')}
-        </div>
-        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mt-0.5">{p.sub}</span>
-      </div>
-    </div>
-  ))}
-</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[
+                  { 
+                    label: 'Website', 
+                    icon: (
+                      <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        <path d="M2 12h20"></path>
+                      </svg>
+                    ), 
+                    val: wpCount, 
+                    sub: 'ARTIKEL AKTIF' 
+                  },
+                  { 
+                    label: 'Meta', 
+                    icon: (
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-[#1877F2] fill-current" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <svg className="w-4 h-4 text-[#E4405F] fill-current" viewBox="0 0 24 24">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                      </div>
+                    ), 
+                    val: platformStats.meta, 
+                    sub: 'INTERAKSI' 
+                  },
+                  { 
+                    label: 'TikTok', 
+                    icon: (
+                      <svg className="w-4 h-4 text-[#ff0050] fill-current" viewBox="0 0 24 24">
+                        <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.923 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/>
+                      </svg>
+                    ), 
+                    val: platformStats.tiktok, 
+                    sub: 'INTERAKSI' 
+                  },
+                  { 
+                    label: 'X (Twitter)', 
+                    icon: (
+                      <svg className="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 24 24">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      </svg>
+                    ), 
+                    val: platformStats.x, 
+                    sub: 'INTERAKSI' 
+                  },
+                  { 
+                    label: 'YT Shorts', 
+                    icon: (
+                      <svg className="w-4 h-4 text-[#FF0000] fill-current" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 0 0-2.122 2.136C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 0 0 2.122 2.136c1.872.55 9.377.55 9.377.55s7.505 0 9.377-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                      </svg>
+                    ), 
+                    val: platformStats.yt, 
+                    sub: 'INTERAKSI' 
+                  },
+                ].map((p, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-gray-400 tracking-wide">{p.label}</span>
+                      {p.icon}
+                    </div>
+                    <div>
+                      <div className="font-roboto text-2xl font-black tracking-tight text-white">
+                        {p.val.toLocaleString('id-ID')}
+                      </div>
+                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mt-0.5">{p.sub}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-              {/* GRAFIK & TARGETS */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -413,16 +410,14 @@ const fetchContentsAndStats = async () => {
                     </div>
                   </div>
                   <MonthlyGoals
-                  isDarkMode={isDarkMode}
-                  upcomingPlans={upcomingPlans}
-                  wpCount={wpCount}
+                    isDarkMode={isDarkMode}
+                    upcomingPlans={upcomingPlans}
+                    wpCount={wpCount}
                   />
-
                 </div>
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}><TargetTracker /></div>
               </div>
 
-              {/* TABEL NASKAH MENDATANG (PEMBUNGKUS SPAN SUDAH DITEPATKAN) */}
               <div className={`p-8 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                 <div className="flex justify-between items-center mb-6">
                   <div>
@@ -452,12 +447,10 @@ const fetchContentsAndStats = async () => {
                             <td className={`py-5 px-4 max-w-xs truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                               <div className="flex items-center space-x-2"><span className="truncate">{p.title}</span>{p.copywriting && <Sparkles size={11} className="text-[#008234] flex-shrink-0" />}</div>
                             </td>
-                            {/* KOREKSI MUTLAK: Sekarang output fungsi dibungkus tag span riil */}
                             <td className="py-5 px-4">
                               <span className={getPillarStyles(p.pillar)}>{p.pillar || 'General'}</span>
                             </td>
                             <td className="py-5 px-4 text-gray-500 font-mono italic">{p.publish_date} | {p.publish_time}</td>
-                            {/* KOREKSI MUTLAK: Sekarang output fungsi dibungkus tag span riil */}
                             <td className="py-5 px-4">
                               <span className={getProdStatusBadge(p.prod_status)}>{p.prod_status || 'Drafting'}</span>
                             </td>
@@ -473,20 +466,13 @@ const fetchContentsAndStats = async () => {
             </div>
           )}
 
-          {/* TAB PLANNING */}
-          {activeTab === 'planning' && (
-    <PlanningForm isDarkMode={isDarkMode} onPlanAdded={fetchContentsAndStats} />
-    )}
-          {/* TAB RECAP TERINTEGRASI */}
+          {activeTab === 'planning' && <PlanningForm isDarkMode={isDarkMode} onPlanAdded={fetchContentsAndStats} />}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
-          {activeTab === 'reports' && ( <Reports isDarkMode={isDarkMode} contents={upcomingPlans as any[]} />
-        )}
+          {activeTab === 'reports' && <Reports isDarkMode={isDarkMode} contents={allContents} />}
 
         </main>
 
-        {/* ========================================================= */}
-        {/* PANEL DRAWER / MODAL KERJA EDITOR (+ SPAN BADGE FIX)      */}
-        {/* ========================================================= */}
+        {/* MODAL POPUP KERJA EDITOR */}
         {selectedContent && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
             <div className={`w-full max-w-2xl ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-100'} rounded-[35px] shadow-2xl overflow-hidden relative border max-h-[90vh] flex flex-col`}>
@@ -497,7 +483,6 @@ const fetchContentsAndStats = async () => {
                   <div className="flex items-center space-x-2 text-[10px] font-black text-[#008234] uppercase tracking-widest"><Info size={13} /><span>Lembar Pengarahan Produksi</span></div>
                   <h2 className={`text-2xl font-black leading-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{selectedContent.title}</h2>
                   
-                  {/* KOREKSI BADGE DI MODAL POPUP JIKA BARIS DIKLIK */}
                   <div className="flex flex-wrap gap-2 pt-2">
                     <span className={getPillarStyles(selectedContent.pillar)}>{selectedContent.pillar || 'General'}</span>
                     <span className="px-3 py-1 rounded-lg text-[9px] font-black border bg-gray-500/10 text-gray-400 border-transparent">{selectedContent.publish_date} @ {selectedContent.publish_time}</span>
@@ -505,7 +490,6 @@ const fetchContentsAndStats = async () => {
                   </div>
                 </div>
 
-                {/* Seksi Poin 1: Aksi Cepat Pembaruan Status */}
                 <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'} space-y-2.5`}>
                   <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Pembaruan Siklus Produksi (Kondisi Terkini)</p>
                   <div className="flex flex-wrap gap-2">
