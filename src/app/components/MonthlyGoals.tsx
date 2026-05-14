@@ -34,7 +34,7 @@ export default function MonthlyGoals({
     { 
       label: 'Produksi Artikel Web', 
       current: wpCount, 
-      target: 30, 
+      target: 50, 
       unit: 'artikel', 
       color: 'blue',
       source: 'Total naskah aktif di database website' 
@@ -42,7 +42,7 @@ export default function MonthlyGoals({
     { 
       label: 'Distribusi Konten (Cross-Post)', 
       current: thisMonthContents.filter(p => p.pub_status === 'Posted').length, 
-      target: 15, 
+      target: 30, 
       unit: 'tayang', 
       color: 'purple',
       source: 'Naskah berstatus "Posted" bulan ini' 
@@ -58,7 +58,7 @@ export default function MonthlyGoals({
     { 
       label: 'Target Interaksi (Engagement)', 
       current: thisMonthEng, 
-      target: 2500, 
+      target: 10000, 
       unit: 'reaksi', 
       color: 'amber',
       source: 'Akumulasi likes/komen/share bulan ini' 
