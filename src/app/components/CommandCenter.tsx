@@ -7,7 +7,7 @@ import {
   Globe, Sparkles, ArrowUpRight, Sun, Moon, LogOut, Bell, Search, Loader2, CheckCircle2,
   Eye, MousePointer2, Send, Info, ChevronRight, Languages
 } from 'lucide-react';
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import TargetTracker from './TargetTracker';
 import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
@@ -40,7 +40,15 @@ export interface ContentPlan {
   x_engagement?: number;
   yt_engagement?: number;
 }
-
+  const defaultChartData = [
+  { day: 'Senin', eng: 0, views: 0 },
+  { day: 'Selasa', eng: 0, views: 0 },
+  { day: 'Rabu', eng: 0, views: 0 },
+  { day: 'Kamis', eng: 0, views: 0 },
+  { day: 'Jumat', eng: 0, views: 0 },
+  { day: 'Sabtu', eng: 0, views: 0 },
+  { day: 'Minggu', eng: 0, views: 0 },
+];
 export default function CommandCenter() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -50,12 +58,12 @@ export default function CommandCenter() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [contents, setContents] = useState<any[]>([]);
   const [allContents, setAllContents] = useState<any[]>([]);
+  const [chartData, setChartData] = useState(defaultChartData);
 
   // States Data Riil
   const [upcomingPlans, setUpcomingPlans] = useState<ContentPlan[]>([]);
   const [loadingContents, setLoadingContents] = useState(true);
   const [wpCount, setWpCount] = useState(0);
-  const [chartData, setChartData] = useState<any[]>([]);
   const [selectedContent, setSelectedContent] = useState<ContentPlan | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   
@@ -432,14 +440,30 @@ export default function CommandCenter() {
                     </div>
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                          <defs><linearGradient id="colorEng" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#008234" stopOpacity={0.15}/><stop offset="95%" stopColor="#008234" stopOpacity={0}/></linearGradient></defs>
-                          <XAxis dataKey="day" stroke="#6B7280" fontSize={9} tickLine={false} axisLine={false} />
-                          <Tooltip contentStyle={{ borderRadius: '15px', fontSize: '11px', backgroundColor: isDarkMode ? '#161920' : '#fff', borderColor: isDarkMode ? '#2d3139' : '#eee', color: isDarkMode ? '#fff' : '#000' }} />
-                          <Area type="monotone" dataKey="eng" stroke="#008234" strokeWidth={3} fillOpacity={1} fill="url(#colorEng)" />
-                          <Line type="monotone" dataKey="views" stroke="#3B82F6" strokeWidth={2} dot={false} strokeDasharray="4 4" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+  <AreaChart data={chartData && chartData.length > 0 ? chartData : defaultChartData}>
+    <defs>
+      <linearGradient id="colorEng" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor="#008234" stopOpacity={0.15}/>
+        <stop offset="95%" stopColor="#008234" stopOpacity={0}/>
+      </linearGradient>
+    </defs>
+    <XAxis dataKey="day" stroke="#6B7280" fontSize={9} tickLine={false} axisLine={false} />
+    
+    {/* KOMPONEN WAJIB AGAR GRAFIK MUNCUL SAAT DATA KOSONG/NOL */}
+    <YAxis domain={[0, 'auto']} hide={true} />
+    
+    <Tooltip 
+      contentStyle={{ 
+        borderRadius: '15px', 
+        fontSize: '11px', 
+        backgroundColor: isDarkMode ? '#161920' : '#fff', 
+        borderColor: isDarkMode ? '#374151' : '#e5e7eb' 
+      }} 
+    />
+    <Area type="monotone" dataKey="eng" stroke="#008234" strokeWidth={3} fillOpacity={1} fill="url(#colorEng)" />
+    <Line type="monotone" dataKey="views" stroke="#3B82F6" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+  </AreaChart>
+</ResponsiveContainer>
                     </div>
                   </div>
                   <MonthlyGoals
