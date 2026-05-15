@@ -5,7 +5,6 @@ import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe, AlertTriangle } from
 
 const PlatformIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
-  // REVISI LOGO: Logo Instagram diganti ke versi Outline yang lebih bersih & presisi
   IG: () => <svg className="w-5 h-5 text-[#E4405F]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
   FB: () => <svg className="w-5 h-5 text-[#1877F2] fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
   TikTok: () => <svg className="w-5 h-5 text-[#ff0050] fill-current" viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.924 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/></svg>,
@@ -105,13 +104,23 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           engagement = likes + comments + shares;
           
         } else {
-          caption = getVal("deskripsi");
-          views = parseInt(getVal("tayangan")) || parseInt(getVal("jangkauan")) || 0;
-          let likes = parseInt(getVal("suka")) || 0;
+          // ========================================================
+          // REVISI HANYA DI BLOK INI: Mengakomodasi CSV Facebook & IG
+          // ========================================================
+          let deskripsi = getVal("deskripsi");
+          let judul = getVal("judul");
+          caption = deskripsi !== "0" ? deskripsi : (judul !== "0" ? judul : "");
+          
+          views = parseInt(getVal("tayangan")) || parseInt(getVal("jangkauan")) || parseInt(getVal("impresi")) || 0;
+          
+          let likes = parseInt(getVal("suka")) || parseInt(getVal("tanggapan")) || 0;
           let comments = parseInt(getVal("komentar")) || 0;
           let shares = parseInt(getVal("frekuensi dibagikan")) || 0;
-          let saves = parseInt(getVal("frekuensi disimpan")) || 0;
-          engagement = likes + comments + shares + saves;
+          let saves = parseInt(getVal("frekuensi disimpan")) || parseInt(getVal("penyimpanan")) || 0;
+          let interaksi = parseInt(getVal("interaksi")) || 0;
+          
+          engagement = interaksi > 0 ? interaksi : (likes + comments + shares + saves);
+          // ========================================================
         }
 
         if(caption && caption !== "0" && (views > 0 || engagement > 0)) {
@@ -160,7 +169,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         const engCol = columnMap[item.platform] || 'engagement';
         
-        // Menetapkan tipe 'any' yang ketat untuk menembus Vercel TS
         const payload: Record<string, any> = {
           title: item.title,
           caption: item.full_caption,
@@ -175,7 +183,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         payload[engCol] = item.engagement;
         if (item.platform === 'web') payload['web_views'] = item.views;
 
-        // REVISI TS: Menggunakan as any[] untuk bypass "Type is not assignable to type never"
         const { error: contentError } = await supabase
           .from('contents')
           .insert([payload] as any[]);
