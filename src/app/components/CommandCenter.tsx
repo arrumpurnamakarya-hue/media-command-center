@@ -13,8 +13,6 @@ import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
 import Reports from './Reports';
 import PlanningForm from './PlanningForm';
-// Catatan: Anda perlu membuat file/komponen Jobdesk terpisah nantinya
-// import Jobdesk from './Jobdesk'; 
 
 const BrandIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -58,7 +56,6 @@ export default function CommandCenter() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [lang, setLang] = useState<'ID' | 'EN'>('ID');
   const [showNotifications, setShowNotifications] = useState(false);
   
   const [allContents, setAllContents] = useState<ContentPlan[]>([]);
@@ -66,11 +63,8 @@ export default function CommandCenter() {
   const [loadingContents, setLoadingContents] = useState(true);
   const [wpCount, setWpCount] = useState(0);
   
-  // Metrik Global (4 Hero Cards)
   const [globalViews, setGlobalViews] = useState(0);
   const [globalEng, setGlobalEng] = useState(0);
-
-  // Metrik 6 Platform (Breakdown Cards)
   const [platformStats, setPlatformStats] = useState({ web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 });
 
   const fetchContentsAndStats = async () => {
@@ -86,8 +80,7 @@ export default function CommandCenter() {
            totalV += Number(c.views || 0);
            totalE += Number(c.engagement || 0);
 
-           // Mengakumulasi langsung dari kolom-kolom baru
-           pStats.web += Number(c.web_views || 0); // Web dihitung berdasarkan views/impressions
+           pStats.web += Number(c.web_views || 0);
            pStats.ig += Number(c.ig_engagement || 0);
            pStats.fb += Number(c.fb_engagement || 0);
            pStats.tiktok += Number(c.tiktok_engagement || 0);
@@ -95,7 +88,6 @@ export default function CommandCenter() {
            pStats.yt += Number(c.yt_engagement || 0);
         });
         
-        // Urutkan konten agar yang terbaru di atas
         const sortedContents = rawContents.sort((a, b) => new Date(b.publish_date || '').getTime() - new Date(a.publish_date || '').getTime());
         setAllContents(sortedContents);
       }
@@ -117,10 +109,7 @@ export default function CommandCenter() {
 
   useEffect(() => { fetchContentsAndStats(); }, []);
 
-  // Filter untuk Tabel Dasbor (Hanya yang sudah tayang)
   const postedContents = allContents.filter(c => c.pub_status === 'Posted');
-  
-  // Status Counts untuk Notifikasi
   const statusCounts = {
     editing: allContents.filter(p => p.prod_status === 'Editing/Design').length,
     drafting: allContents.filter(p => p.prod_status === 'Drafting' || p.prod_status === 'Ideation').length,
@@ -129,62 +118,51 @@ export default function CommandCenter() {
 
   const formatNumberMax = (num: number) => num > 9999 ? `${(num/1000).toFixed(1)}K` : num.toLocaleString('id-ID');
 
-  // KOMPONEN HISTORI PLATFORM DINAMIS
   const PlatformHistoryTable = ({ title, icon, platformKey, engagementKey }: { title: string, icon: React.ReactNode, platformKey: string, engagementKey: keyof ContentPlan }) => {
-    // Ambil konten yang platformnya cocok, atau jika dari Recap (Imported Data)
     const platformContents = postedContents.filter(c => 
       c.platforms?.includes(platformKey.toUpperCase()) || 
       (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)
-    ).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0)); // Urutkan berdasarkan engagement tertinggi
+    ).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
 
     const top5Contents = platformContents.slice(0, 5);
 
     return (
-      <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
+      <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
         <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
           <div className="flex items-center gap-3">
             {icon}
             <div>
               <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
-              <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Performa Tertinggi</p>
+              <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
             </div>
           </div>
           <Flame size={16} className="text-emerald-500" />
         </div>
 
-        {top5Contents.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-100/10 pb-2">
-                  <th className="pb-2 px-2 font-black">Naskah</th>
-                  <th className="pb-2 px-2 font-black text-right">Interaksi</th>
-                </tr>
-              </thead>
-              <tbody className="text-[11px] font-bold divide-y divide-gray-100/5">
-                {top5Contents.map((p) => (
-                  <tr key={p.id} className="hover:bg-white/5 transition-colors group">
-                    <td className={`py-3 px-2 max-w-[150px] truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                      {p.title}
-                    </td>
-                    <td className="py-3 px-2 text-right text-emerald-400 font-roboto text-sm">
-                      {formatNumberMax(Number(p[engagementKey] || 0))}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="flex-1">
+          {top5Contents.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div>
+          ) : (
+            <div className="space-y-4">
+              {top5Contents.map((p) => (
+                <div key={p.id} className="flex justify-between items-center group">
+                  <div className={`text-[11px] font-bold truncate pr-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                    {p.title}
+                  </div>
+                  <div className="text-[11px] font-black text-emerald-400 font-roboto">
+                    {formatNumberMax(Number(p[engagementKey] || 0))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         
-        {/* Tombol Lihat Seluruhnya */}
         <button 
           onClick={() => setActiveTab('reports')} 
-          className={`w-full mt-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-gray-800/30 text-gray-400 hover:bg-gray-800 hover:text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+          className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}
         >
-          Lihat Seluruhnya di Reports
+          Lihat Seluruh {title}
         </button>
       </div>
     );
@@ -193,7 +171,6 @@ export default function CommandCenter() {
   return (
     <div className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${isDarkMode ? 'bg-[#0b0d10] text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
       
-      {/* SIDEBAR TETAP SAMA */}
       <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} border-r flex flex-col transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 shadow-sm`}>
         <div className={`flex items-center space-x-3 px-6 py-6 border-b border-gray-100/10 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           <div className="w-10 h-10 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-lg shadow-green-900/20">PKB</div>
@@ -214,10 +191,8 @@ export default function CommandCenter() {
         </nav>
       </aside>
 
-      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* TOP BAR TETAP SAMA */}
         <header className={`h-20 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
           <div className="md:hidden"><Menu onClick={() => setMobileMenuOpen(true)} size={20} className="cursor-pointer" /></div>
           
@@ -231,7 +206,6 @@ export default function CommandCenter() {
               {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
-            {/* NOTIFIKASI REAL-TIME */}
             <div className="relative">
               <button onClick={() => setShowNotifications(!showNotifications)} className={`p-2.5 rounded-xl border relative transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
                 <Bell size={15} />
@@ -262,28 +236,31 @@ export default function CommandCenter() {
           {activeTab === 'dashboard' && (
             <div className="animate-fadeIn space-y-8">
               
-              {/* STRUKTUR LAMA: 3 HERO METRICS ATAS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* DIKEMBALIKAN: 4 HERO METRICS ATAS (REACH, ENG, POST, WEB) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
                   <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Reach</p><div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Eye size={16} /></div></div>
-                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(globalViews)}</h3>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic text-blue-400`}>{formatNumberMax(globalViews)}</h3>
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Eye size={100} /></div>
                 </div>
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
-                  <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Eng.</p><div className="p-2 bg-purple-500/10 text-purple-500 rounded-xl"><MousePointer2 size={16} /></div></div>
-                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(globalEng)}</h3>
+                  <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Eng.</p><div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl"><MousePointer2 size={16} /></div></div>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic text-emerald-400`}>{formatNumberMax(globalEng)}</h3>
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><MousePointer2 size={100} /></div>
                 </div>
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
                   <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Postingan</p><div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl"><Send size={16} /></div></div>
-                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {postedContents.length + wpCount}
-                  </h3>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{postedContents.length}</h3>
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Send size={100} /></div>
+                </div>
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Artikel Web</p><div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Globe size={16} /></div></div>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{wpCount}</h3>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Globe size={100} /></div>
                 </div>
               </div>
 
-              {/* STRUKTUR BARU: 6 KARTU PLATFORM BREAKDOWN AKUMULATIF */}
+              {/* 6 KARTU PLATFORM BREAKDOWN AKUMULATIF */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
                   { label: 'Website', icon: <BrandIcons.Web />, val: platformStats.web, sub: 'IMPRESSIONS' },
@@ -306,10 +283,8 @@ export default function CommandCenter() {
                 ))}
               </div>
 
-              {/* STRUKTUR LAMA: GRAFIK 30 HARI, TARGET BULANAN, & MINGGUAN */}
+              {/* GRAFIK 30 HARI, TARGET BULANAN, & MINGGUAN */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                {/* BAGIAN KIRI */}
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
@@ -345,13 +320,12 @@ export default function CommandCenter() {
                   />
                 </div>
 
-                {/* BAGIAN KANAN */}
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}>
                   <TargetTracker />
                 </div>
               </div>
 
-              {/* STRUKTUR BARU: 6 TABEL HISTORI PLATFORM MENGUDARA (TOP 5) */}
+              {/* 6 TABEL HISTORI PLATFORM MENGUDARA (TOP 5) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="Web / GSC" icon={<BrandIcons.Web />} platformKey="web" engagementKey="web_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
