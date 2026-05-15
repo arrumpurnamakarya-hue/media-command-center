@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe } from 'lucide-react';
+import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe, AlertTriangle } from 'lucide-react';
 
 const PlatformIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -17,7 +17,6 @@ interface RecapFormProps {
   onRecapSuccess?: () => void | Promise<void>;
 }
 
-// 1. INI ADALAH "KTP" RESMI AGAR TYPESCRIPT VERCEL TIDAK PROTES
 interface PreviewItem {
   title: string;
   full_caption: string;
@@ -27,9 +26,9 @@ interface PreviewItem {
 }
 
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
-  // 2. KITA PASANG KTP-NYA DI SINI
   const [previewData, setPreviewData] = useState<PreviewItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // State baru untuk menangkap error senyap
   
   const [platformStatus, setPlatformStatus] = useState({
     web: { file: null as string | null, status: 'idle' },
@@ -45,6 +44,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
     if (!file) return;
 
     setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'processing', file: file.name } }));
+    setErrorMessage(null);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -120,36 +120,54 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
   const handleRemoveFile = (platformKey: string) => {
     setPlatformStatus(prev => ({ ...prev, [platformKey]: { file: null, status: 'idle' } }));
     setPreviewData(prev => prev.filter(p => p.platform !== platformKey));
+    setErrorMessage(null);
   };
 
   const handleBulkSave = async () => {
     if (previewData.length === 0) return;
+    
     setIsSubmitting(true);
+    setErrorMessage(null);
+
     try {
       for (const item of previewData) {
-        const { data: contentData, error: contentError } = await supabase
+        
+        // Pemetaan kolom dinamis agar langsung masuk ke kolom tabel 'contents' Anda
+        const columnMap: Record<string, string> = {
+          'web': 'web_engagement',
+          'ig': 'ig_engagement',
+          'fb': 'fb_engagement',
+          'tiktok': 'tiktok_engagement',
+          'x': 'x_engagement',
+          'yt': 'yt_engagement'
+        };
+        
+        const engCol = columnMap[item.platform] || 'engagement';
+        
+        const payload: any = {
+          title: item.title,
+          caption: item.full_caption,
+          pub_status: 'Posted',
+          prod_status: 'Completed',
+          pillar: 'Imported Data',
+          views: item.views,
+          engagement: item.engagement,
+          platforms: [item.platform.toUpperCase()]
+        };
+        
+        // Suntikkan angka ke spesifik platform
+        payload[engCol] = item.engagement;
+        if (item.platform === 'web') payload['web_views'] = item.views;
+
+        // Proses Injeksi Langsung ke tabel Contents
+        const { error: contentError } = await supabase
           .from('contents')
-          .insert([{
-            title: item.title,
-            caption: item.full_caption,
-            pub_status: 'Posted',
-            prod_status: 'Completed',
-            pillar: 'Imported Data'
-          }])
-          .select()
-          .single();
+          .insert([payload]);
 
         if (contentError) throw contentError;
-
-        await supabase.from('platform_metrics').insert([{
-          content_id: contentData.id,
-          platform: item.platform,
-          views: item.views,
-          engagement: item.engagement
-        }]);
       }
       
-      alert("✅ Sinkronisasi Massal Berhasil! Data Historis telah masuk ke Reports.");
+      alert("✅ Sinkronisasi Massal Berhasil! Data CSV telah masuk ke sistem.");
       if (onRecapSuccess) await onRecapSuccess();
       
       setPreviewData([]);
@@ -159,9 +177,10 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         x: { file: null, status: 'idle' }, yt: { file: null, status: 'idle' }
       });
 
-    } catch (error) {
-      console.error(error);
-      alert("Gagal melakukan sinkronisasi.");
+    } catch (error: any) {
+      console.error("Supabase Error:", error);
+      // Tangkap error dan tampilkan di layar agar kita tahu persis letak penolakan Database-nya
+      setErrorMessage(error.message || "Gagal menyimpan ke database Supabase.");
     } finally {
       setIsSubmitting(false);
     }
@@ -259,13 +278,24 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           </div>
         )}
 
+        {/* MONITOR ERROR: Akan muncul berwarna merah jika Supabase menolak data */}
+        {errorMessage && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 animate-fadeIn">
+            <AlertTriangle className="text-red-500 flex-shrink-0" size={18} />
+            <div>
+              <h4 className="text-xs font-black text-red-500 uppercase tracking-widest">Koneksi Database Ditolak</h4>
+              <p className="text-[10px] text-red-400/80 mt-1 font-mono">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
         <button 
           onClick={handleBulkSave}
           disabled={previewData.length === 0 || isSubmitting}
           className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-            previewData.length === 0
+            previewData.length === 0 || isSubmitting
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
-              : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 active:scale-[0.98]'
+              : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 cursor-pointer active:scale-[0.98]'
           }`}
         >
           {isSubmitting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save size={16} /> IMPOR MASSAL KE REPORTS</>}
