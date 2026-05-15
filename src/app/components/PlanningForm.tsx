@@ -2,454 +2,297 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  Calendar as CalendarIcon, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  X, 
-  Save, 
-  Loader2, 
-  Clock, 
-  CheckCircle2, 
-  Layers 
+  CalendarDays, Plus, Edit2, Trash2, X, Clock, MapPin, 
+  CheckCircle2, AlertTriangle, FileText, Type, Tag, Activity
 } from 'lucide-react';
+
+interface ContentPlan {
+  id: string;
+  title: string;
+  pillar: string;
+  publish_date: string;
+  publish_time: string;
+  prod_status: string;
+  platforms: string[];
+  copywriting: string;
+  caption: string;
+}
 
 interface PlanningFormProps {
   isDarkMode?: boolean;
   onPlanAdded?: () => void;
 }
 
+const PILLARS = ['Strategic', 'Educational', 'Entertaining', 'Promotional', 'Commemorative Day'];
+const STATUSES = ['Ideation', 'Drafting', 'Editing/Design', 'Ready to Post'];
+const PLATFORMS_LIST = ['IG', 'FB', 'TIKTOK', 'X', 'YT', 'WEB'];
+
 export default function PlanningForm({ isDarkMode = true, onPlanAdded }: PlanningFormProps) {
-  const [plans, setPlans] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // State untuk mengontrol Pop-Up Modal
+  const [contents, setContents] = useState<ContentPlan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State untuk Form
+  const [formData, setFormData] = useState<Partial<ContentPlan>>({
+    title: '', pillar: 'Strategic', publish_date: '', publish_time: '12:00',
+    prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
+  });
 
-  // State Form Input
-  const [title, setTitle] = useState('');
-  const [pillar, setPillar] = useState('Strategic');
-  const [publishDate, setPublishDate] = useState('');
-  const [publishTime, setPublishTime] = useState('09:00');
-  const [platforms, setPlatforms] = useState<string[]>([]);
-  const [copywriting, setCopywriting] = useState('');
-  const [caption, setCaption] = useState('');
-  const [prodStatus, setProdStatus] = useState('Drafting');
-
-  // Daftar Pilar Konten Lengkap (Termasuk Commemorative Day)
-  const pillarsList = [
-    'Education',
-    'Promotion',
-    'Entertainment',
-    'Information',
-    'Commemorative Day' // <-- Pilar baru yang diinjeksi
-  ];
-
-  const availablePlatforms = ['Meta (FB/IG)', 'TikTok', 'X (Twitter)', 'Website', 'YT Shorts'];
-  const statusOptions = ['Drafting', 'Scheduled', 'Posted'];
-
-  // Mengambil daftar rencana konten dari Supabase
   const fetchPlans = async () => {
-    setLoading(true);
     const { data, error } = await supabase
       .from('contents')
       .select('*')
-      .order('publish_date', { ascending: true }); // Diurutkan dari tanggal terdekat
+      .neq('pillar', 'Imported Data') // Sembunyikan data CSV dari kalender
+      .order('publish_date', { ascending: true })
+      .order('publish_time', { ascending: true });
     
-    if (data) setPlans(data);
-    setLoading(false);
+    if (data) setContents(data);
   };
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
+  useEffect(() => { fetchPlans(); }, []);
 
-  // Handler Multi-select Platform
-  const togglePlatform = (plat: string) => {
-    setPlatforms(prev => 
-      prev.includes(plat) ? prev.filter(p => p !== plat) : [...prev, plat]
-    );
-  };
-
-  // Membuka Modal untuk Tambah Konten Baru
-  const handleOpenAddModal = () => {
-    setEditId(null);
-    setTitle('');
-    setPillar('Strategic');
-    setPublishDate(new Date().toISOString().split('T')[0]);
-    setPublishTime('09:00');
-    setPlatforms(['Meta (FB/IG)']);
-    setCopywriting('');
-    setCaption('');
-    setProdStatus('Drafting');
-    setIsModalOpen(true);
-  };
-
-  // Membuka Modal dan Mengisi Data untuk Mode Edit
-  const handleOpenEditModal = (item: any) => {
-    setEditId(item.id);
-    setTitle(item.title || '');
-    setPillar(item.pillar || 'Strategic');
-    setPublishDate(item.publish_date || '');
-    setPublishTime(item.publish_time || '09:00');
-    
-    // Parse platform jika tersimpan sebagai JSON/string/array
-    let parsedPlatforms: string[] = [];
-    if (Array.isArray(item.platforms)) {
-      parsedPlatforms = item.platforms;
-    } else if (typeof item.platforms === 'string') {
-      try { parsedPlatforms = JSON.parse(item.platforms); } catch { parsedPlatforms = [item.platforms]; }
-    }
-    setPlatforms(parsedPlatforms);
-    
-    setCopywriting(item.copywriting || '');
-    setCaption(item.caption || '');
-    setProdStatus(item.prod_status || item.pub_status || 'Drafting');
-    setIsModalOpen(true);
-  };
-
-  // Eksekusi Simpan (Insert / Update) ke Supabase
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !publishDate) {
-      alert("Judul dan Tanggal Tayang wajib diisi!");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const payload = {
-      title,
-      pillar,
-      publish_date: publishDate,
-      publish_time: publishTime,
-      platforms,
-      copywriting,
-      caption,
-      prod_status: prodStatus,
-      pub_status: prodStatus === 'Posted' ? 'Posted' : 'Draft',
-    };
-
-    if (editId) {
-      // MODE UPDATE
-      const { error } = await supabase.from('contents').update(payload).eq('id', editId);
-      if (error) alert("Gagal memperbarui: " + error.message);
-      else {
-        setPlans(prev => prev.map(p => p.id === editId ? { ...p, ...payload } : p));
-        setIsModalOpen(false);
-        if (onPlanAdded) onPlanAdded();
-      }
+  const handleOpenModal = (item?: ContentPlan) => {
+    if (item) {
+      setFormData(item);
     } else {
-      // MODE INSERT BARU
-      const { data, error } = await supabase.from('contents').insert([payload]).select();
-      if (error) alert("Gagal menyimpan: " + error.message);
-      else {
-        if (data) setPlans(prev => [...prev, ...data]);
-        setIsModalOpen(false);
-        if (onPlanAdded) onPlanAdded();
+      setFormData({
+        title: '', pillar: 'Strategic', publish_date: new Date().toISOString().split('T')[0], 
+        publish_time: '12:00', prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setFormData({});
+  };
+
+  const handlePlatformToggle = (plat: string) => {
+    const current = formData.platforms || [];
+    if (current.includes(plat)) {
+      setFormData({ ...formData, platforms: current.filter(p => p !== plat) });
+    } else {
+      setFormData({ ...formData, platforms: [...current, plat] });
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const payload = { ...formData, pub_status: 'Scheduled' };
+      
+      if (formData.id) {
+        // Edit Mode
+        const { error } = await supabase.from('contents').update(payload).eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        // Insert Mode
+        const { error } = await supabase.from('contents').insert([payload]);
+        if (error) throw error;
       }
-    }
-    setIsSubmitting(false);
-  };
 
-  // Eksekusi Hapus Data
-  const handleDelete = async (id: string, titleStr: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus rencana tayang "${titleStr}"?`)) return;
-
-    const { error } = await supabase.from('contents').delete().eq('id', id);
-    if (error) alert("Gagal menghapus: " + error.message);
-    else {
-      setPlans(prev => prev.filter(p => p.id !== id));
+      await fetchPlans();
       if (onPlanAdded) onPlanAdded();
+      handleCloseModal();
+    } catch (error: any) {
+      alert("Error saving data: " + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Styling Dinamis
-  const bgCard = isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200';
-  const bgInput = isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white focus:border-emerald-500' : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-emerald-600';
-  const textTitle = isDarkMode ? 'text-white' : 'text-gray-900';
+  const handleDelete = async (id: string, title: string) => {
+    if (!window.confirm(`Hapus naskah "${title}" dari kalender?`)) return;
+    try {
+      await supabase.from('contents').delete().eq('id', id);
+      await fetchPlans();
+      if (onPlanAdded) onPlanAdded();
+    } catch (error: any) {
+      alert("Error deleting data: " + error.message);
+    }
+  };
+
+  // Mengelompokkan konten berdasarkan Tanggal untuk UI Kalender
+  const groupedContents = contents.reduce((acc, curr) => {
+    const date = curr.publish_date || 'TBA';
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(curr);
+    return acc;
+  }, {} as Record<string, ContentPlan[]>);
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn relative">
       
-      {/* HEADER TAB PLANNING & TOMBOL PICU POP-UP MODAL */}
-      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${bgCard}`}>
+      {/* HEADER KALENDER */}
+      <div className={`p-8 rounded-[35px] border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
         <div>
-          <h2 className={`text-xl font-black tracking-tight ${textTitle} flex items-center gap-2`}>
-            <CalendarIcon className="text-emerald-500" size={22} /> MANAJEMEN KALENDER & JADWAL KONTEN
+          <h2 className={`text-2xl font-black uppercase tracking-tight flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <CalendarDays className="text-[#008234]" /> Content Calendar
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
-            Linimasa rencana produksi, pengawalan brief, dan tenggat waktu siaran media
-          </p>
+          <p className="text-xs text-gray-500 mt-2 font-bold tracking-widest uppercase">Agenda Publikasi & Status Produksi Redaksi</p>
         </div>
-
-        <button
-          onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs tracking-wider uppercase transition-all shadow-md active:scale-95 self-start md:self-auto"
+        <button 
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 px-6 py-3 bg-[#008234] hover:bg-green-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 active:scale-95"
         >
-          <Plus size={16} strokeWidth={3} /> TAMBAH RENCANA
+          <Plus size={16} /> Tambah Naskah
         </button>
       </div>
 
-      {/* TAMPILAN DAFTAR KALENDER / JADWAL KONTEN */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className={`p-12 text-center rounded-3xl border ${bgCard}`}>
-            <Loader2 className="animate-spin mx-auto text-emerald-500 mb-2" size={24} />
-            <span className="text-xs font-bold text-gray-500">Memuat linimasa kalender...</span>
-          </div>
-        ) : plans.length === 0 ? (
-          <div className={`p-12 text-center rounded-3xl border ${bgCard}`}>
-            <p className="text-sm font-semibold text-gray-500">Belum ada agenda tayang yang terdaftar.</p>
-            <button 
-              onClick={handleOpenAddModal} 
-              className="mt-3 text-xs font-bold text-emerald-500 underline hover:text-emerald-400"
-            >
-              Buat jadwal pertama Anda sekarang
-            </button>
+      {/* AGENDA VIEW (DAFTAR KONTEN) */}
+      <div className="space-y-6">
+        {Object.keys(groupedContents).length === 0 ? (
+          <div className={`p-12 text-center rounded-[35px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+            <FileText size={48} className="mx-auto text-gray-600 opacity-20 mb-4" />
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Belum ada agenda konten yang direncanakan.</p>
           </div>
         ) : (
-          plans.map((item) => {
-            const isPosted = item.pub_status === 'Posted' || item.prod_status === 'Posted';
-            
-            return (
-              <div 
-                key={item.id} 
-                className={`p-5 rounded-2xl border transition-all hover:border-emerald-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4 ${bgCard}`}
-              >
-                {/* Sisi Kiri: Informasi Waktu & Detail Jadwal */}
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Badge Status Produksi */}
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border ${
-                      isPosted
-                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                        : item.prod_status === 'Scheduled'
-                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                        : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                    }`}>
-                      {item.prod_status || 'Drafting'}
-                    </span>
+          Object.keys(groupedContents).map((date) => (
+            <div key={date} className={`p-6 md:p-8 rounded-[35px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
+              
+              {/* Separator Tanggal */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest font-roboto ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                  {new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+                <div className="flex-1 h-px bg-gray-500/20"></div>
+              </div>
 
-                    {/* Pilar Konten */}
-                    <span className="text-[10px] font-bold text-gray-400 px-2 py-0.5 rounded bg-gray-500/10 border border-gray-500/10">
-                      {item.pillar || 'Strategic'}
-                    </span>
+              {/* List Konten di Tanggal Tersebut */}
+              <div className="space-y-4">
+                {groupedContents[date].map((item) => (
+                  <div key={item.id} className={`p-5 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 hover:border-gray-700' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-[10px] font-black px-2 py-1 rounded bg-gray-500/10 text-gray-400 font-roboto flex items-center gap-1">
+                          <Clock size={10} /> {item.publish_time}
+                        </span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                          item.prod_status === 'Ready to Post' ? 'bg-[#008234]/10 text-[#008234]' : 
+                          item.prod_status === 'Editing/Design' ? 'bg-amber-500/10 text-amber-500' : 
+                          'bg-blue-500/10 text-blue-500'
+                        }`}>
+                          {item.prod_status}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1 border border-gray-500/20 px-2 py-1 rounded">
+                           <Tag size={10}/> {item.pillar}
+                        </span>
+                      </div>
+                      <h3 className={`text-sm font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.title}</h3>
+                      <div className="flex items-center gap-1.5">
+                        {item.platforms?.map(p => (
+                           <span key={p} className="text-[8px] font-black bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded">{p}</span>
+                        ))}
+                      </div>
+                    </div>
 
-                    {/* Penunjuk Waktu berbasis Font Roboto */}
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-500/5 px-2 py-0.5 rounded border border-gray-500/5">
-                      <Clock size={12} className="text-emerald-500" />
-                      <span className="font-roboto text-emerald-400">{item.publish_date}</span>
-                      <span>•</span>
-                      <span className="font-roboto">{item.publish_time || '09:00'} WIB</span>
+                    <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity w-full md:w-auto justify-end mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-0 border-gray-500/20">
+                      <button onClick={() => handleOpenModal(item)} className="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(item.id, item.title)} className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
-
-                  <h3 className={`text-base font-bold tracking-tight ${textTitle}`}>
-                    {item.title}
-                  </h3>
-
-                  {/* Kanal Distribusi Terpilih */}
-                  {item.platforms && item.platforms.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                      <span className="text-[9px] font-extrabold text-gray-500 uppercase tracking-widest">Kanal:</span>
-                      {(Array.isArray(item.platforms) ? item.platforms : [item.platforms]).map((plat: string, pi: number) => (
-                        <span key={pi} className="text-[9px] font-black px-2 py-0.5 rounded bg-gray-500/10 text-gray-300">
-                          {plat}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Cuplikan Caption/Brief jika ada */}
-                  {item.caption && (
-                    <p className="text-xs text-gray-400 line-clamp-1 italic border-l-2 border-gray-700 pl-2">
-                      "{item.caption}"
-                    </p>
-                  )}
-                </div>
-
-                {/* Sisi Kanan: Tombol Aksi CRUD */}
-                <div className="flex items-center gap-2 self-end md:self-center border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-end border-gray-800">
-                  <button
-                    onClick={() => handleOpenEditModal(item)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold text-xs transition-all border border-blue-500/10"
-                  >
-                    <Edit3 size={14} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id, item.title)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs transition-all border border-red-500/10"
-                  >
-                    <Trash2 size={14} /> Hapus
-                  </button>
-                </div>
+                ))}
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
-      {/* ==========================================
-          POP-UP MODAL OVERLAY (TAMBAH / EDIT KONTEN) 
-          ========================================== */}
+      {/* MODAL POP-UP FORM */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border shadow-2xl p-6 md:p-8 ${bgCard} relative`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className={`w-full max-w-2xl rounded-[30px] border shadow-2xl flex flex-col max-h-[90vh] ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
             
-            {/* Tombol Tutup Modal */}
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 p-2 rounded-full bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 transition-all"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="mb-6">
-              <h3 className={`text-xl font-black tracking-tight ${textTitle}`}>
-                {editId ? 'UBAH AGENDA JADWAL' : 'RANCANG KONTEN BARU'}
-              </h3>
-              <p className="text-xs text-gray-500">Isi parameter siaran dan arahan redaksi di bawah ini</p>
+            <div className="p-6 md:p-8 flex justify-between items-center border-b border-gray-500/10">
+              <div>
+                <h3 className={`text-xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {formData.id ? 'Edit Naskah' : 'Tambah Naskah Baru'}
+                </h3>
+                <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">Formulir Perencanaan Redaksi</p>
+              </div>
+              <button onClick={handleCloseModal} className="p-2 rounded-full bg-gray-500/10 text-gray-400 hover:text-white transition-all"><X size={20}/></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Baris 1: Judul Naskah */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Judul Naskah / Konten *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Liputan Kunjungan Kerja Daerah..."
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${bgInput}`}
-                />
-              </div>
-
-              {/* Baris 2: Pilar Konten & Status Produksi */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pilar Strategis</label>
-                  <select
-                    value={pillar}
-                    onChange={e => setPillar(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer transition-all ${bgInput}`}
-                  >
-                    {pillarsList.map((p, idx) => (
-                      <option key={idx} value={p}>{p}</option>
-                    ))}
-                  </select>
+            <div className="flex-1 overflow-y-auto p-6 md:p-8">
+              <form id="planningForm" onSubmit={handleSave} className="space-y-6">
+                
+                {/* Judul */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Judul / Tema Konten</label>
+                  <input type="text" required value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Contoh: Liputan Kunjungan SMAN 8..." className={`w-full p-4 rounded-xl border font-bold text-sm focus:outline-none focus:border-[#008234] transition-colors ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white placeholder-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Status Kesiapan</label>
-                  <select
-                    value={prodStatus}
-                    onChange={e => setProdStatus(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none cursor-pointer transition-all ${bgInput}`}
-                  >
-                    {statusOptions.map((st, idx) => (
-                      <option key={idx} value={st}>{st}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Baris 3: Tanggal & Waktu Siaran */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tanggal Rilis *</label>
-                  <input
-                    type="date"
-                    required
-                    value={publishDate}
-                    onChange={e => setPublishDate(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all font-roboto ${bgInput}`}
-                  />
+                {/* Tanggal & Waktu (Menggunakan font-roboto untuk angka) */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Tanggal Tayang</label>
+                    <input type="date" required value={formData.publish_date || ''} onChange={e => setFormData({...formData, publish_date: e.target.value})} className={`w-full p-4 rounded-xl border font-roboto font-bold text-sm focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Jam Tayang</label>
+                    <input type="time" required value={formData.publish_time || ''} onChange={e => setFormData({...formData, publish_time: e.target.value})} className={`w-full p-4 rounded-xl border font-roboto font-bold text-sm focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Waktu Siaran (WIB)</label>
-                  <input
-                    type="time"
-                    value={publishTime}
-                    onChange={e => setPublishTime(e.target.value)}
-                    className={`w-full px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all font-roboto ${bgInput}`}
-                  />
+                {/* Pillar & Status */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Content Pillar</label>
+                    <select value={formData.pillar || ''} onChange={e => setFormData({...formData, pillar: e.target.value})} className={`w-full p-4 rounded-xl border font-bold text-sm focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-900'}`}>
+                      {PILLARS.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Status Produksi</label>
+                    <select value={formData.prod_status || ''} onChange={e => setFormData({...formData, prod_status: e.target.value})} className={`w-full p-4 rounded-xl border font-bold text-sm focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-900'}`}>
+                      {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              {/* Baris 4: Saluran Distribusi (Multi-Select Pills) */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Kanal Cross-Posting</label>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {availablePlatforms.map((plat) => {
-                    const isSelected = platforms.includes(plat);
-                    return (
-                      <button
-                        type="button"
-                        key={plat}
-                        onClick={() => togglePlatform(plat)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                          isSelected 
-                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' 
-                            : 'bg-gray-500/5 text-gray-500 border-gray-500/10 hover:border-gray-500/20'
-                        }`}
-                      >
-                        <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${isSelected ? 'bg-emerald-500 border-emerald-500':'border-gray-600'}`}>
-                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
-                        </div>
-                        {plat}
-                      </button>
-                    );
-                  })}
+                {/* Platforms (Multi-Select Pills) */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 block">Distribusi Platform</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PLATFORMS_LIST.map(plat => {
+                      const isSelected = formData.platforms?.includes(plat);
+                      return (
+                        <button type="button" key={plat} onClick={() => handlePlatformToggle(plat)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${isSelected ? 'bg-[#008234] border-[#008234] text-white shadow-lg shadow-green-900/20' : isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-500 hover:border-gray-600' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                          {plat}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Baris 5: Copywriting / Brief Arahan */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Brief / Deskripsi Naskah</label>
-                <textarea
-                  rows={2}
-                  placeholder="Tulis arahan desain, poin naskah, atau catatan peliputan..."
-                  value={copywriting}
-                  onChange={e => setCopywriting(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border text-xs font-medium outline-none transition-all resize-none ${bgInput}`}
-                />
-              </div>
+                {/* Naskah & Copywriting */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Draft Caption / Naskah</label>
+                  <textarea rows={4} value={formData.caption || ''} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Tuliskan draf teks untuk postingan..." className={`w-full p-4 rounded-xl border font-medium text-sm leading-relaxed focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300 placeholder-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900'}`}></textarea>
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Copywriting Visual (Teks di Gambar/Video)</label>
+                  <input type="text" value={formData.copywriting || ''} onChange={e => setFormData({...formData, copywriting: e.target.value})} placeholder="Teks hook untuk desain visual..." className={`w-full p-4 rounded-xl border font-medium text-sm focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300 placeholder-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                </div>
 
-              {/* Baris 6: Caption Siaran */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Caption Media Sosial</label>
-                <textarea
-                  rows={2}
-                  placeholder="Tulis draf takarir (caption) lengkap dengan tagar..."
-                  value={caption}
-                  onChange={e => setCaption(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl border text-xs font-medium outline-none transition-all resize-none ${bgInput}`}
-                />
-              </div>
+              </form>
+            </div>
 
-              {/* Tombol Simpan Form Modal */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs tracking-wider uppercase transition-all shadow-lg active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="animate-spin" size={16} /> MENYIMPAN JADWAL...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} /> {editId ? 'SIMPAN PERUBAHAN AGENDA' : 'TERBITKAN RENCANA KONTEN'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+            <div className="p-6 md:p-8 border-t border-gray-500/10">
+              <button type="submit" form="planningForm" disabled={isSubmitting} className="w-full py-4 rounded-xl bg-[#008234] hover:bg-green-700 text-white font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 disabled:opacity-50">
+                {isSubmitting ? 'Menyimpan...' : 'Simpan ke Kalender'}
+              </button>
+            </div>
+            
           </div>
         </div>
       )}
