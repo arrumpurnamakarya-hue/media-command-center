@@ -2,39 +2,76 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  FileText, Sparkles, Printer, Search, Filter, 
-  TrendingUp, BarChart3, Award, Edit2, Trash2, CheckSquare, X, LayoutList, Loader2
+  FileText, Sparkles, Printer, Search, TrendingUp, BarChart3, Award, 
+  Edit2, Trash2, X, LayoutList, Loader2, ChevronDown, Filter,
+  Database, Send, Clock, FileSpreadsheet, Eye, MousePointer2, Activity, CalendarDays
 } from 'lucide-react';
 
+// --- KOMPONEN MODERN DROPDOWN KHUSUS ---
+interface DropdownOption { value: string; label: string; }
+const ModernDropdown = ({ value, options, onChange, icon: Icon, placeholder, isDarkMode }: { value: string, options: DropdownOption[], onChange: (val: string) => void, icon?: any, placeholder: string, isDarkMode: boolean }) => {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+
+  return (
+    <div className="relative" onMouseLeave={() => setOpen(false)}>
+      <button type="button" onClick={() => setOpen(!open)} className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border transition-all min-w-[160px] text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-400' : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-emerald-500'}`}>
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={14} className="text-[#008234]" />}
+          <span className="truncate">{selectedLabel}</span>
+        </div>
+        <ChevronDown size={14} className={`transition-transform duration-300 ${open ? 'rotate-180 text-emerald-500' : 'text-gray-500'}`} />
+      </button>
+      {open && (
+        <div className={`absolute top-full mt-2 left-0 w-full rounded-2xl border shadow-2xl z-50 overflow-hidden animate-fadeIn ${isDarkMode ? 'bg-[#161920] border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+            {options.map(opt => (
+              <button key={opt.value} onClick={() => { onChange(opt.value); setOpen(false); }} className={`w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors rounded-xl mb-1 last:mb-0 ${value === opt.value ? 'bg-[#008234] text-white' : isDarkMode ? 'text-gray-400 hover:bg-gray-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- INTERFACES ---
 interface ContentPlan {
-  id: string;
-  title: string;
-  pillar: string;
-  publish_date?: string;
-  publish_time?: string;
-  prod_status?: string;
-  pub_status?: string;
-  platforms?: string[];
-  views?: number;
-  engagement?: number;
-  [key: string]: any; 
+  id: string; title: string; pillar: string; publish_date?: string; publish_time?: string;
+  prod_status?: string; pub_status?: string; platforms?: string[];
+  views?: number; engagement?: number; [key: string]: any; 
 }
 
-interface ReportsProps {
-  contents: ContentPlan[];
-  isDarkMode?: boolean;
-}
+interface ReportsProps { contents: ContentPlan[]; isDarkMode?: boolean; }
 
 export default function Reports({ contents = [], isDarkMode = true }: ReportsProps) {
-  // OPTIMISTIC UI STATE: Menyalin prop ke local state agar bisa diedit real-time tanpa refresh
   const [localContents, setLocalContents] = useState<ContentPlan[]>([]);
   useEffect(() => { setLocalContents(contents); }, [contents]);
 
-  // STATE FILTER & TAB INTERNAL
+  // STATE FILTER & TAB
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState('ALL');
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'POSTED' | 'SCHEDULED' | 'IMPORTED'>('ALL');
   
+  // STATE MODERN DROPDOWN
+  const [selectedPlatform, setSelectedPlatform] = useState('ALL');
+  const [selectedMonth, setSelectedMonth] = useState('ALL');
+  const [selectedYear, setSelectedYear] = useState('ALL');
+
+  // OPSI MODERN DROPDOWN
+  const platformOptions = [
+    { value: 'ALL', label: 'Semua Lini' }, { value: 'WEB', label: 'Website' },
+    { value: 'IG', label: 'Instagram' }, { value: 'FB', label: 'Facebook' }, { value: 'TIKTOK', label: 'TikTok' }
+  ];
+  const monthOptions = [
+    { value: 'ALL', label: 'Semua Bulan' }, { value: '01', label: 'Januari' }, { value: '02', label: 'Februari' },
+    { value: '03', label: 'Maret' }, { value: '04', label: 'April' }, { value: '05', label: 'Mei' },
+    { value: '06', label: 'Juni' }, { value: '07', label: 'Juli' }, { value: '08', label: 'Agustus' },
+    { value: '09', label: 'September' }, { value: '10', label: 'Oktober' }, { value: '11', label: 'November' }, { value: '12', label: 'Desember' }
+  ];
+  const yearOptions = [{ value: 'ALL', label: 'Semua Tahun' }, ...Array.from({length: 10}, (_, i) => ({ value: String(2026 + i), label: String(2026 + i) }))];
+
   // STATE BULK ACTIONS & QUICK EDIT
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editingRow, setEditingRow] = useState<ContentPlan | null>(null);
@@ -43,29 +80,33 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [aiInsights, setAiInsights] = useState<{ execSummary: string; performance: string; recommendation: string } | null>(null);
 
-  // FILTERING LOGIC BERLAPIS
+  // LOGIKA FILTERING
   const reportData = useMemo(() => {
     return localContents.filter(c => {
-      // 1. Filter Pencarian
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      
-      // 2. Filter Platform
       if (selectedPlatform !== 'ALL' && !c.platforms?.includes(selectedPlatform) && !(selectedPlatform === 'WEB' && (c.web_views || 0) > 0)) return false;
       
-      // 3. Filter Tab Internal (Segregasi Data)
+      const pDate = c.publish_date || ''; // Asumsi format YYYY-MM-DD
+      const cYear = pDate.split('-')[0];
+      const cMonth = pDate.split('-')[1];
+      
+      if (selectedYear !== 'ALL' && cYear !== selectedYear) return false;
+      if (selectedMonth !== 'ALL' && cMonth !== selectedMonth) return false;
+
       if (activeSubTab === 'POSTED' && (c.pub_status !== 'Posted' || c.pillar === 'Imported Data')) return false;
       if (activeSubTab === 'SCHEDULED' && c.pub_status === 'Posted') return false;
       if (activeSubTab === 'IMPORTED' && c.pillar !== 'Imported Data') return false;
 
       return true;
     });
-  }, [localContents, searchQuery, selectedPlatform, activeSubTab]);
+  }, [localContents, searchQuery, selectedPlatform, selectedMonth, selectedYear, activeSubTab]);
 
-  // STATISTIK RIIL UNTUK AI
+  // STATISTIK RIIL UNTUK KARTU & AI
   const stats = useMemo(() => {
     let totalReach = 0; let totalEng = 0;
     reportData.forEach(c => { totalReach += Number(c.views || 0); totalEng += Number(c.engagement || 0); });
-    return { totalReach, totalEng, count: reportData.length };
+    const avgEng = reportData.length > 0 ? Math.round(totalEng / reportData.length) : 0;
+    return { totalReach, totalEng, count: reportData.length, avgEng };
   }, [reportData]);
 
   // FUNGSI AI GENERATOR
@@ -73,57 +114,30 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
     setIsAiGenerating(true);
     setTimeout(() => {
       setAiInsights({
-        execSummary: `Berdasarkan audit pangkalan data Media Center pada segmen ini, penetrasi sebaran naskah publikasi mencatatkan akumulasi jangkauan (Total Reach) sebesar ${stats.totalReach.toLocaleString('id-ID')} tayangan. Traksi publikasi menunjukkan konsistensi pergerakan positif, menandakan pesan strategis organisasi tersampaikan secara efektif ke basis konstituen digital di wilayah Garut.`,
-        performance: `Segmen data ini menyumbang angka keterlibatan (Engagement) sebesar ${stats.totalEng.toLocaleString('id-ID')} interaksi dari total ${stats.count} naskah. Naskah publikasi bertema pengawalan kebijakan mendapatkan konversi respons publik paling agresif. Artikel website juga mencatatkan retensi pembaca yang kuat pasca-sinkronisasi pengindeksan.`,
-        recommendation: `1. Replikasi pola narasi naskah infografis ke dalam bentuk narasi pendek visual untuk meningkatkan konversi di platform lain.\n2. Lakukan optimalisasi jam tayang (Publish Time) pada rentang waktu prima (Prime Time) pukul 16:00 - 19:00 WIB guna menjaring traksi massa yang lebih luas.\n3. Tingkatkan produksi konten pilar 'Commemorative Day' dengan menyuntikkan pesan humanis untuk mendekati ceruk pemilih pemula.`
+        execSummary: `Berdasarkan parameter filter yang aktif, pangkalan data Media Center mencatatkan ${stats.count} naskah dengan akumulasi jangkauan (Total Reach) sebesar ${stats.totalReach.toLocaleString('id-ID')} tayangan. Traksi publikasi menunjukkan penetrasi yang stabil, memastikan pesan strategis organisasi tersampaikan efektif ke ceruk konstituen digital.`,
+        performance: `Volume data ini menyumbang angka keterlibatan (Engagement) kumulatif sebesar ${stats.totalEng.toLocaleString('id-ID')} interaksi. Rata-rata interaksi per naskah berada di angka ${stats.avgEng.toLocaleString('id-ID')}. Naskah dengan visual tajam serta artikel website mencatatkan retensi dan konversi respons publik paling agresif.`,
+        recommendation: `1. Replikasi pola narasi naskah interaktif berkinerja tertinggi ke dalam bentuk video pendek (Reels/TikTok).\n2. Berdasarkan data historis, sinkronkan jam tayang (Publish Time) pada rentang waktu prima 16:00 - 19:00 WIB guna menjaring traksi massa optimal.\n3. Tingkatkan volume konten pilar 'Strategic' dan 'Commemorative Day' untuk memperkuat kedekatan emosional dengan audiens.`
       });
       setIsAiGenerating(false);
     }, 1500);
   };
 
-  // FUNGSI BULK DELETE (HAPUS MASSAL)
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) setSelectedRows(reportData.map(r => r.id));
-    else setSelectedRows([]);
-  };
-
+  // FUNGSI AKSI DATA
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => e.target.checked ? setSelectedRows(reportData.map(r => r.id)) : setSelectedRows([]);
   const handleBulkDelete = async () => {
     if (!window.confirm(`PERINGATAN: Hapus permanen ${selectedRows.length} data terpilih dari database?`)) return;
-    
-    // Optimistic UI Update
     setLocalContents(prev => prev.filter(c => !selectedRows.includes(c.id)));
     setSelectedRows([]);
-
-    // Background Supabase Delete
-    try {
-      await supabase.from('contents').delete().in('id', selectedRows);
-    } catch (err) {
-      console.error(err);
-      alert("Gagal menghapus data di server.");
-    }
+    try { await supabase.from('contents').delete().in('id', selectedRows); } catch (err) { alert("Gagal menghapus data di server."); }
   };
-
-  // FUNGSI QUICK EDIT SAVE
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRow) return;
-
-    // Optimistic UI Update
     setLocalContents(prev => prev.map(c => c.id === editingRow.id ? editingRow : c));
     setEditingRow(null);
-
-    // Background Supabase Update
     try {
-      await supabase.from('contents').update({
-        title: editingRow.title,
-        views: editingRow.views,
-        engagement: editingRow.engagement,
-        publish_date: editingRow.publish_date
-      }).eq('id', editingRow.id);
-    } catch (err) {
-      console.error(err);
-      alert("Gagal menyimpan perubahan di server.");
-    }
+      await supabase.from('contents').update({ title: editingRow.title, views: editingRow.views, engagement: editingRow.engagement, publish_date: editingRow.publish_date }).eq('id', editingRow.id);
+    } catch (err) { alert("Gagal menyimpan perubahan di server."); }
   };
 
   const formatNumber = (num: number) => num > 9999 ? `${(num / 1000).toFixed(1)}K` : num.toLocaleString('id-ID');
@@ -132,103 +146,110 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   return (
     <div className="max-w-7xl mx-auto space-y-6 relative font-inter text-gray-100 animate-fadeIn">
       
-      {/* TAMPILAN SCREEN UTAMA */}
+      {/* TAMPILAN SCREEN UTAMA (Sembunyi saat di-print) */}
       <div className="no-print space-y-6">
         
-        {/* HEADER & TOP ACTION BAR */}
-        <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white text-gray-900 border-gray-200'}`}>
+        {/* HEADER & FILTER BAR */}
+        <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white text-gray-900 border-gray-200'}`}>
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
-              <FileText className="text-[#008234]" /> Content Base
+              <Database className="text-[#008234]" /> Content Base
             </h2>
             <p className="text-[10px] text-gray-400 font-bold mt-1 tracking-widest uppercase">Single Source of Truth (SSOT) & Intelijen Data</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            {/* Filter Platform */}
-            <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${isDarkMode ? 'border-gray-800 bg-[#0b0d10]' : 'border-gray-200 bg-gray-50'}`}>
-              <Filter size={12} className="text-gray-500" />
-              <select value={selectedPlatform} onChange={e => setSelectedPlatform(e.target.value)} className={`bg-transparent text-[10px] font-black uppercase tracking-wider outline-none cursor-pointer ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                <option value="ALL">Semua Lini</option>
-                <option value="WEB">Website</option>
-                <option value="IG">Instagram</option>
-                <option value="FB">Facebook</option>
-                <option value="TIKTOK">TikTok</option>
-              </select>
-            </div>
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* MODERN DROPDOWNS */}
+            <ModernDropdown value={selectedPlatform} options={platformOptions} onChange={setSelectedPlatform} icon={Filter} placeholder="Pilih Platform" isDarkMode={isDarkMode} />
+            <ModernDropdown value={selectedMonth} options={monthOptions} onChange={setSelectedMonth} icon={CalendarDays} placeholder="Pilih Bulan" isDarkMode={isDarkMode} />
+            <ModernDropdown value={selectedYear} options={yearOptions} onChange={setSelectedYear} icon={CalendarDays} placeholder="Pilih Tahun" isDarkMode={isDarkMode} />
 
-            <button onClick={generateAiInsights} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">
+            <div className="w-px h-8 bg-gray-500/30 hidden md:block mx-2"></div>
+
+            <button onClick={generateAiInsights} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg active:scale-95">
               <Sparkles size={14} /> Analisis AI
             </button>
-            <button onClick={handleExportPdf} className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-gray-700 active:scale-95">
-              <Printer size={14} /> Cetak Laporan
+            <button onClick={handleExportPdf} className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-gray-700 active:scale-95">
+              <Printer size={14} /> Ekspor PDF
             </button>
           </div>
         </div>
 
-        {/* AI INSIGHTS PANEL */}
+        {/* KARTU ANGKA STATISTIK (DITAMPILKAN DI ATAS AI) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Entri', val: stats.count, icon: <LayoutList size={20} />, color: 'text-white' },
+            { label: 'Total Reach', val: formatNumber(stats.totalReach), icon: <Eye size={20} />, color: 'text-blue-400' },
+            { label: 'Total Engagement', val: formatNumber(stats.totalEng), icon: <MousePointer2 size={20} />, color: 'text-emerald-400' },
+            { label: 'Rata-rata Eng.', val: formatNumber(stats.avgEng), icon: <Activity size={20} />, color: 'text-amber-400' },
+          ].map((card, idx) => (
+            <div key={idx} className={`p-5 rounded-[25px] border shadow-sm relative overflow-hidden group ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{card.label}</span>
+                <div className={`p-2 rounded-xl bg-gray-500/10 ${card.color}`}>{card.icon}</div>
+              </div>
+              <div className={`font-roboto text-3xl font-black tracking-tight mt-2 ${card.color}`}>{card.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* PANEL AI INSIGHTS */}
         {isAiGenerating && (
           <div className="p-12 rounded-[35px] border border-gray-800 bg-[#12151a] flex flex-col items-center text-center space-y-4 shadow-xl">
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-400 animate-pulse">AI sedang mengaudit pusat data...</p>
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-400 animate-pulse">Memproses Jutaan Parameter Data...</p>
           </div>
         )}
         {aiInsights && !isAiGenerating && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
             <div className={`p-6 rounded-3xl border shadow-inner ${isDarkMode ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-emerald-500/30 bg-emerald-50'}`}>
               <div className="flex items-center gap-2 text-emerald-500 mb-3"><BarChart3 size={16}/><h4 className="text-[10px] font-black uppercase tracking-wider">Ringkasan Eksekutif</h4></div>
-              <p className={`text-xs leading-relaxed font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.execSummary}</p>
+              <p className={`text-[11px] leading-relaxed font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.execSummary}</p>
             </div>
             <div className={`p-6 rounded-3xl border shadow-inner ${isDarkMode ? 'border-blue-500/20 bg-blue-500/5' : 'border-blue-500/30 bg-blue-50'}`}>
               <div className="flex items-center gap-2 text-blue-500 mb-3"><TrendingUp size={16}/><h4 className="text-[10px] font-black uppercase tracking-wider">Analisis Performa</h4></div>
-              <p className={`text-xs leading-relaxed font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.performance}</p>
+              <p className={`text-[11px] leading-relaxed font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.performance}</p>
             </div>
             <div className={`p-6 rounded-3xl border shadow-inner ${isDarkMode ? 'border-amber-500/20 bg-amber-500/5' : 'border-amber-500/30 bg-amber-50'}`}>
               <div className="flex items-center gap-2 text-amber-500 mb-3"><Award size={16}/><h4 className="text-[10px] font-black uppercase tracking-wider">Rekomendasi Taktis AI</h4></div>
-              <p className={`text-xs leading-relaxed font-semibold whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.recommendation}</p>
+              <p className={`text-[11px] leading-relaxed font-semibold whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{aiInsights.recommendation}</p>
             </div>
           </div>
         )}
 
-        {/* MAIN DATA GRID (TABEL INTERAKTIF) */}
+        {/* MAIN DATA GRID (TABEL) */}
         <div className={`rounded-[35px] border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
           
-          {/* TAB SEGREGASI INTERNAL */}
+          {/* TAB SEGREGASI INTERNAL DENGAN IKON */}
           <div className="flex overflow-x-auto custom-scrollbar border-b border-gray-500/20 bg-black/10">
             {[
-              { id: 'ALL', label: 'Seluruh Database' },
-              { id: 'POSTED', label: 'Telah Mengudara' },
-              { id: 'SCHEDULED', label: 'Antrean (Rencana)' },
-              { id: 'IMPORTED', label: 'Data Historis CSV' }
+              { id: 'ALL', label: 'Semua Data', icon: <Database size={12}/> },
+              { id: 'POSTED', label: 'Mengudara', icon: <Send size={12}/> },
+              { id: 'SCHEDULED', label: 'Antrean (Rencana)', icon: <Clock size={12}/> },
+              { id: 'IMPORTED', label: 'Historis CSV', icon: <FileSpreadsheet size={12}/> }
             ].map(tab => (
               <button 
                 key={tab.id} onClick={() => { setActiveSubTab(tab.id as any); setSelectedRows([]); }} 
-                className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-b-2 transition-all ${activeSubTab === tab.id ? 'border-[#008234] text-[#008234] bg-[#008234]/5' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
+                className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-b-2 transition-all ${activeSubTab === tab.id ? 'border-[#008234] text-[#008234] bg-[#008234]/5' : 'border-transparent text-gray-500 hover:text-gray-400'}`}
               >
-                {tab.label}
+                {tab.icon} {tab.label}
               </button>
             ))}
           </div>
 
-          {/* SEARCH & BULK ACTION BAR */}
           <div className="p-6 flex justify-between items-center bg-black/5">
             <div className={`flex items-center rounded-xl px-4 py-2 border w-72 ${isDarkMode ? 'border-gray-800 bg-[#0b0d10]' : 'border-gray-200 bg-gray-50'}`}>
               <Search size={14} className="text-gray-500 mr-2" />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Cari arsip naskah..." className={`bg-transparent text-xs outline-none w-full font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
             </div>
 
-            {selectedRows.length > 0 ? (
+            {selectedRows.length > 0 && (
               <button onClick={handleBulkDelete} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 animate-fadeIn">
                 <Trash2 size={14} /> Hapus {selectedRows.length} Terpilih
               </button>
-            ) : (
-              <span className="text-[10px] font-black tracking-widest uppercase text-gray-500 flex items-center gap-2">
-                <LayoutList size={14}/> {reportData.length} Entri Ditemukan
-              </span>
             )}
           </div>
 
-          {/* TABEL DATA */}
           <div className="overflow-x-auto pb-4">
             <table className="w-full text-left">
               <thead>
@@ -248,7 +269,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
                 {reportData.map((row) => {
                   const isSelected = selectedRows.includes(row.id);
                   return (
-                    <tr key={row.id} className={`transition-colors group ${isSelected ? (isDarkMode ? 'bg-[#008234]/10' : 'bg-green-50') : 'hover:bg-black/20'}`}>
+                    <tr key={row.id} className={`transition-colors group ${isSelected ? (isDarkMode ? 'bg-[#008234]/10' : 'bg-green-50') : 'hover:bg-white/5'}`}>
                       <td className="py-4 px-6">
                         <input type="checkbox" checked={isSelected} onChange={(e) => {
                           if (e.target.checked) setSelectedRows([...selectedRows, row.id]);
@@ -263,7 +284,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center">
-                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${row.pub_status === 'Posted' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${row.pub_status === 'Posted' || row.pillar === 'Imported Data' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
                           {row.pub_status || 'Draft'}
                         </span>
                       </td>
@@ -287,7 +308,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
       </div>
 
-      {/* QUICK EDIT MODAL (PENUH DAN TIDAK TERPOTONG) */}
+      {/* QUICK EDIT MODAL */}
       {editingRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
           <div className={`w-full max-w-md rounded-[30px] border shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -326,9 +347,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       )}
 
       {/* ======================================================== */}
-      {/* LAYOUT KHUSUS UNTUK CETAK PDF (KOP SURAT EKSKLUSIF) */}
+      {/* AREA RENDER PDF KHUSUS (DISAMARKAN MELALUI CLASS)        */}
       {/* ======================================================== */}
-      <div className="print-only hidden font-sans text-black bg-white p-4">
+      <div className="print-safe-area hidden bg-white text-black font-sans w-full h-full p-8 absolute top-0 left-0 z-[9999]">
         
         <div className="flex items-center justify-between border-b-4 border-double border-black pb-4 mb-6">
           <div className="w-1/6 flex justify-start">
@@ -336,9 +357,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           </div>
           
           <div className="w-4/6 text-center space-y-1">
-            <h1 className="text-xl font-extrabold tracking-wide uppercase text-black">MEDIA CENTER DPC PKB GARUT</h1>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-800">Pusat Komando Strategi Media & Penetrasi Opini Publik</p>
-            <p className="text-[10px] font-medium text-gray-600">Sekretariat: Jl. Jend. Sudirman No. 12, Kabupaten Garut, Jawa Barat</p>
+            <h1 className="text-xl font-extrabold tracking-wide uppercase text-black m-0 p-0">MEDIA CENTER DPC PKB GARUT</h1>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-800 m-0 p-0">Pusat Komando Strategi Media & Penetrasi Opini Publik</p>
+            <p className="text-[10px] font-medium text-gray-600 m-0 p-0">Sekretariat: Jl. Jend. Sudirman No. 12, Kabupaten Garut, Jawa Barat</p>
           </div>
           
           <div className="w-1/6 text-right text-[9px] font-mono font-bold text-gray-400">
@@ -347,42 +368,42 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
 
         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-gray-700 border-b border-gray-200 pb-2 mb-6">
-          <span>Jenis Dokumen: Laporan Eksekutif Performa Media</span>
-          <span>Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <span>Laporan Performa Publikasi Media</span>
+          <span>Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
 
         {aiInsights && (
-          <div className="mb-6 bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-4">
+          <div className="mb-6 bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
             <div>
-              <h3 className="text-xs font-black uppercase text-black tracking-wide mb-1">I. Ringkasan Eksekutif AI</h3>
+              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">I. Ringkasan Eksekutif AI</h3>
               <p className="text-[11px] text-gray-800 leading-relaxed text-justify">{aiInsights.execSummary}</p>
             </div>
             <div>
-              <h3 className="text-xs font-black uppercase text-black tracking-wide mb-1">II. Analisis Performa Jalur</h3>
+              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">II. Analisis Performa Jalur</h3>
               <p className="text-[11px] text-gray-800 leading-relaxed text-justify">{aiInsights.performance}</p>
             </div>
             <div>
-              <h3 className="text-xs font-black uppercase text-black tracking-wide mb-1">III. Rekomendasi Aksi Strategis</h3>
+              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">III. Rekomendasi Aksi Strategis</h3>
               <p className="text-[11px] text-gray-900 font-bold whitespace-pre-line leading-relaxed">{aiInsights.recommendation}</p>
             </div>
           </div>
         )}
 
         <div>
-          <h3 className="text-xs font-black uppercase text-black tracking-wide mb-3">IV. Lampiran Lembar Kerja Performa Konten</h3>
+          <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-3">IV. Lampiran Lembar Kerja Performa Konten</h3>
           <table className="w-full text-left border-collapse border border-gray-300 text-[10px]">
             <thead>
               <tr className="bg-gray-100 text-black font-black uppercase tracking-wider border-b border-gray-300">
-                <th className="p-3 border border-gray-300">Judul Naskah Terbit</th>
-                <th className="p-3 border border-gray-300">Tanggal</th>
-                <th className="p-3 border border-gray-300 text-right">Reach / Impresi</th>
-                <th className="p-3 border border-gray-300 text-right">Total Engagement</th>
+                <th className="p-3 border border-gray-300 w-1/2">Judul Naskah Terbit</th>
+                <th className="p-3 border border-gray-300 w-1/6">Tanggal</th>
+                <th className="p-3 border border-gray-300 w-1/6 text-right">Reach</th>
+                <th className="p-3 border border-gray-300 w-1/6 text-right">Engagement</th>
               </tr>
             </thead>
             <tbody className="font-medium text-gray-900 divide-y divide-gray-300">
               {reportData.map((row, idx) => (
                 <tr key={idx} className="even:bg-gray-50/50">
-                  <td className="p-3 border border-gray-300 max-w-xs truncate">{row.title}</td>
+                  <td className="p-3 border border-gray-300 truncate">{row.title}</td>
                   <td className="p-3 border border-gray-300 font-mono">{row.publish_date || "Historis CSV"}</td>
                   <td className="p-3 border border-gray-300 text-right font-bold">{row.views?.toLocaleString('id-ID')}</td>
                   <td className="p-3 border border-gray-300 text-right font-bold">{(row.engagement || 0).toLocaleString('id-ID')}</td>
@@ -392,12 +413,12 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           </table>
         </div>
 
-        <div className="mt-12 flex justify-end">
+        <div className="mt-16 flex justify-end">
           <div className="text-center w-64 space-y-16">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Mengesahkan, Chief of Communications</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700 m-0 p-0">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Mengesahkan, Chief of Communications</p>
             <div>
-              <p className="text-xs font-black uppercase underline text-black">M. Faiz Pahrul Islam</p>
-              <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase">PT Hatmoko Karya Terdepan</p>
+              <p className="text-xs font-black uppercase underline text-black m-0 p-0">M. Faiz Pahrul Islam</p>
+              <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase m-0 p-0">PT Hatmoko Karya Terdepan</p>
             </div>
           </div>
         </div>
@@ -405,25 +426,37 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       </div>
 
       <style jsx global>{`
+        /* Logika Print Aman agar halaman tidak blank putih */
         @media print {
-          body, html, aside, header, .no-print, button, input, select {
-            display: none !important;
-          }
-          .print-only {
-            display: block !important;
-            color: #000000 !important;
-            background: #ffffff !important;
-          }
           @page {
             size: A4 portrait;
-            margin: 20mm 15mm 20mm 15mm;
+            margin: 20mm 15mm;
           }
+          body {
+            background-color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Matikan tampilan layar UI normal */
+          .no-print, header, aside, button, nav {
+            display: none !important;
+          }
+          /* Nyalakan template render Kertas A4 Putih Kop Surat */
+          .print-safe-area {
+            display: block !important;
+            position: relative !important;
+            width: 100% !important;
+            height: auto !important;
+            background: white !important;
+            color: black !important;
+            z-index: 10 !important;
+          }
+          /* Matikan link print bawaan browser di footer margin */
           a[href]:after {
             content: none !important;
           }
         }
       `}</style>
-
     </div>
   );
 }
