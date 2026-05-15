@@ -178,12 +178,15 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         const engCol = columnMap[item.platform] || 'engagement';
         
+        // PAYLOAD SUPER AMAN: Kita isi semua kolom yang mungkin diwajibkan oleh Supabase
         const payload: Record<string, any> = {
-          title: item.title,
-          caption: item.full_caption,
+          title: item.title || "Naskah Tanpa Judul",
+          caption: item.full_caption || "",
           pub_status: 'Posted',
           prod_status: 'Completed',
-          pillar: 'Imported Data',
+          pillar: 'Strategic', // Diganti dari 'Imported Data' menjadi pilar standar agar lolos Enum
+          publish_date: new Date().toISOString().split('T')[0], // Otomatis pakai tanggal hari ini
+          publish_time: '12:00', // Otomatis waktu default
           views: item.views,
           engagement: item.engagement,
           platforms: [item.platform.toUpperCase()]
@@ -211,7 +214,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
 
     } catch (error: any) {
       console.error("Supabase Error:", error);
-      setErrorMessage(error.message || "Gagal menyimpan ke database Supabase. Pastikan Anda sudah menjalankan SQL ALTER TABLE.");
+      setErrorMessage(error.message || "Gagal menyimpan ke database Supabase.");
     } finally {
       setIsSubmitting(false);
     }
