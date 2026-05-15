@@ -67,7 +67,6 @@ export default function CommandCenter() {
   const [globalEng, setGlobalEng] = useState(0);
   const [platformStats, setPlatformStats] = useState({ web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 });
 
-  // STATE UNTUK MODAL POP-UP HISTORI LENGKAP
   const [selectedPlatformModal, setSelectedPlatformModal] = useState<{ title: string, key: string, engKey: keyof ContentPlan, icon: React.ReactNode } | null>(null);
 
   const fetchContentsAndStats = async () => {
@@ -113,6 +112,12 @@ export default function CommandCenter() {
   useEffect(() => { fetchContentsAndStats(); }, []);
 
   const postedContents = allContents.filter(c => c.pub_status === 'Posted');
+  
+  // LOGIKA BARU: Upcoming Runway Data
+  const upcomingRunway = allContents
+    .filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted')
+    .slice(0, 4);
+
   const statusCounts = {
     editing: allContents.filter(p => p.prod_status === 'Editing/Design').length,
     drafting: allContents.filter(p => p.prod_status === 'Drafting' || p.prod_status === 'Ideation').length,
@@ -163,7 +168,6 @@ export default function CommandCenter() {
           )}
         </div>
         
-        {/* Tombol Membuka Modal */}
         <button 
           onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} 
           className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}
@@ -288,6 +292,8 @@ export default function CommandCenter() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* BAGIAN KIRI: CHART & MONTHLY GOALS */}
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
@@ -323,9 +329,50 @@ export default function CommandCenter() {
                   />
                 </div>
 
-                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}>
-                  {/* SINKRONISASI TARGET TRACKER */}
-                  <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
+                {/* BAGIAN KANAN: TARGET TRACKER + UPCOMING RUNWAY */}
+                <div className="flex flex-col gap-6">
+                  <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
+                    <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
+                  </div>
+                  
+                  {/* MODUL BARU: UPCOMING RUNWAY */}
+                  <div className={`flex-1 p-6 rounded-3xl border relative overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
+                    <div className="flex justify-between items-center mb-6">
+                      <div>
+                        <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Upcoming Runway</h4>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Antrean Tayang Terdekat</p>
+                      </div>
+                      <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
+                        <Activity size={16} className="animate-pulse" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {upcomingRunway.length === 0 ? (
+                        <div className="py-10 text-center opacity-20">
+                          <Sparkles size={24} className="mx-auto text-gray-700 mb-2" />
+                          <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Semua naskah telah tayang</p>
+                        </div>
+                      ) : upcomingRunway.map((item, idx) => (
+                        <div key={item.id || idx} className={`p-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-100'} group hover:border-[#008234]/50 transition-all`}>
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter ${item.prod_status === 'Ready to Post' ? 'bg-[#008234]/10 text-[#008234]' : 'bg-amber-500/10 text-amber-500'}`}>
+                              {item.prod_status === 'Ready to Post' ? 'Ready' : 'Editing'}
+                            </span>
+                            <span className="text-[9px] font-mono text-gray-500 italic">{item.publish_time || "09:00"}</span>
+                          </div>
+                          <h5 className={`text-[10px] font-bold line-clamp-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{item.title}</h5>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={() => setActiveTab('planning')}
+                      className="w-full mt-6 py-2.5 rounded-xl border border-dashed border-gray-700 text-[9px] font-black text-gray-500 uppercase hover:text-[#008234] hover:border-[#008234]/50 transition-all"
+                    >
+                      Buka Kalender Content
+                    </button>
+                  </div>
                 </div>
               </div>
 
