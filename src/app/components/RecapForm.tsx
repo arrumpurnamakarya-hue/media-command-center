@@ -23,7 +23,7 @@ interface PreviewItem {
   platform: string;
   views: number;
   engagement: number;
-  publish_date: string; // Dipertahankan agar sinkronisasi grafik dan target mingguan berfungsi
+  publish_date: string;
 }
 
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
@@ -52,65 +52,47 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       const text = event.target?.result as string;
       if (!text) return;
 
-      const parsedRows: string[][] = [];
-      let currentRow: string[] = [];
-      let currentVal = '';
-      let insideQuote = false;
+      const rows = text.split(/\r?\n/);
+      if (rows.length < 2) return;
 
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const nextChar = text[i + 1];
-
-        if (char === '"') {
-          if (insideQuote && nextChar === '"') {
-            currentVal += '"';
-            i++; 
-          } else {
-            insideQuote = !insideQuote;
-          }
-        } else if (char === ',' && !insideQuote) {
-          currentRow.push(currentVal.trim());
-          currentVal = '';
-        } else if ((char === '\n' || char === '\r') && !insideQuote) {
-          if (char === '\r' && nextChar === '\n') i++;
-          currentRow.push(currentVal.trim());
-          if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
-          currentRow = [];
-          currentVal = '';
-        } else {
-          currentVal += char;
-        }
-      }
-      if (currentVal || currentRow.length > 0) {
-        currentRow.push(currentVal.trim());
-        if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
-      }
-
-      if (parsedRows.length < 2) {
-         setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'idle', file: null } }));
-         return;
-      }
-
-      // ==========================================
-      // MESIN PEMBACA KEBAL KARAKTER TERSEMBUNYI
-      // ==========================================
-      const headers = parsedRows[0].map(h => h.replace(/"/g, '').trim().toLowerCase());
+      const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
       const parsedData: PreviewItem[] = [];
 
-      for(let i = 1; i < parsedRows.length; i++) {
-        const rowValues = parsedRows[i];
+      for(let i = 1; i < rows.length; i++) {
+        const rowString = rows[i];
+        if(!rowString.trim()) continue;
 
-        // MENGGUNAKAN .includes() AGAR FACEBOOK TERBACA MESKI ADA KARAKTER BOM
+        const rowValues: string[] = [];
+        let insideQuote = false;
+        let currentVal = '';
+        
+        for(let j = 0; j < rowString.length; j++) {
+          const char = rowString[j];
+          if(char === '"') {
+            insideQuote = !insideQuote;
+          } else if(char === ',' && !insideQuote) {
+            rowValues.push(currentVal.trim());
+            currentVal = '';
+          } else {
+            currentVal += char;
+          }
+        }
+        rowValues.push(currentVal.trim());
+
+        // LOGIKA PENCOCOKAN KOLOM PRESISI (ANTI-SALAH BACA)
         const getVal = (colName: string) => {
-          const idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
-          if(idx === -1) return "";
+          let idx = headers.findIndex(h => h === colName.toLowerCase());
+          if (idx === -1) idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
+          if (idx === -1) return "";
           let rawVal = rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "";
           return rawVal.trim();
         };
 
+        // FILTER ANTI-NaN UNTUK SEMUA ANGKA
         const getNum = (colName: string) => {
-           const val = getVal(colName).replace(/,/g, '').replace(/\./g, '');
-           return parseInt(val) || 0;
+          const val = getVal(colName).replace(/,/g, '').replace(/\./g, '').replace(/-/g, '').trim();
+          const parsed = parseInt(val, 10);
+          return isNaN(parsed) ? 0 : parsed;
         };
 
         let caption = "";
@@ -136,9 +118,9 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           }
           
         } else {
-          // LOGIKA UNTUK MENANGKAP CSV FB DAN IG SEKALIGUS
+          // FACEBOOK & IG (Menggunakan getNum agar kebal simbol -- )
           caption = getVal("deskripsi") || getVal("judul") || getVal("title") || "";
-          views = getNum("tayangan") || getNum("jangkauan") || getNum("impresi") || 0;
+          views = getNum("tayangan") || getNum("jangkauan") || getNum("impresi");
           
           let likes = getNum("suka") || getNum("tanggapan");
           let comments = getNum("komentar");
@@ -149,11 +131,9 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           engagement = interaksi > 0 ? interaksi : (likes + comments + shares + saves);
 
           let rawDate = getVal("waktu penerbitan") || getVal("tanggal");
-          if(rawDate) {
+          if(rawDate && rawDate.includes('/')) {
              const parts = rawDate.split(' ')[0].split('/');
-             if(parts.length === 3) {
-                pDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-             }
+             if(parts.length === 3) pDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
           }
         }
 
@@ -204,20 +184,24 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         const engCol = columnMap[item.platform] || 'engagement';
         
+        // PAYLOAD DIJAMIN BERSIH DARI NaN
+        const safeViews = isNaN(Number(item.views)) ? 0 : Number(item.views);
+        const safeEngagement = isNaN(Number(item.engagement)) ? 0 : Number(item.engagement);
+
         const payload: Record<string, any> = {
-          title: item.title,
-          caption: item.full_caption,
+          title: item.title || "Konten Impor",
+          caption: item.full_caption || "",
           pub_status: 'Posted',
           prod_status: 'Completed',
           pillar: 'Imported Data',
-          publish_date: item.publish_date,
-          views: item.views,
-          engagement: item.engagement,
+          publish_date: item.publish_date || new Date().toISOString().split('T')[0],
+          views: safeViews,
+          engagement: safeEngagement,
           platforms: [item.platform.toUpperCase()]
         };
         
-        payload[engCol] = item.engagement;
-        if (item.platform === 'web') payload['web_views'] = item.views;
+        payload[engCol] = safeEngagement;
+        if (item.platform === 'web') payload['web_views'] = safeViews;
 
         const { error: contentError } = await supabase
           .from('contents')
