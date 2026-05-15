@@ -5,7 +5,8 @@ import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe, AlertTriangle } from
 
 const PlatformIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
-  IG: () => <svg className="w-5 h-5 text-[#E4405F] fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069z"/></svg>,
+  // REVISI LOGO: Logo Instagram diganti ke versi Outline yang lebih bersih & presisi
+  IG: () => <svg className="w-5 h-5 text-[#E4405F]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
   FB: () => <svg className="w-5 h-5 text-[#1877F2] fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
   TikTok: () => <svg className="w-5 h-5 text-[#ff0050] fill-current" viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.924 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/></svg>,
   X: () => <svg className="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
@@ -89,17 +90,13 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         let views = 0;
         let engagement = 0;
 
-        // MESIN PEMBACA KHUSUS UNTUK MASING-MASING FORMAT
         if (platformKey === 'web') {
-          // Format GSC (Pages.csv)
           let rawUrl = getVal("top pages");
-          // Format URL agar enak dibaca (ubah slug menjadi teks)
           caption = rawUrl.replace('https://pkbgarut.id/', '').replace(/-/g, ' ').replace(/\//g, '') || "Halaman Utama Website";
           views = parseInt(getVal("impressions")) || 0;
           engagement = parseInt(getVal("clicks")) || 0;
           
         } else if (platformKey === 'tiktok') {
-          // Format TikTok (Content.csv)
           caption = getVal("video title");
           views = parseInt(getVal("total views")) || 0;
           let likes = parseInt(getVal("total likes")) || 0;
@@ -108,7 +105,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           engagement = likes + comments + shares;
           
         } else {
-          // Format Meta/Instagram (Apr-21...csv)
           caption = getVal("deskripsi");
           views = parseInt(getVal("tayangan")) || parseInt(getVal("jangkauan")) || 0;
           let likes = parseInt(getVal("suka")) || 0;
@@ -164,7 +160,8 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         const engCol = columnMap[item.platform] || 'engagement';
         
-        const payload: any = {
+        // Menetapkan tipe 'any' yang ketat untuk menembus Vercel TS
+        const payload: Record<string, any> = {
           title: item.title,
           caption: item.full_caption,
           pub_status: 'Posted',
@@ -178,9 +175,10 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         payload[engCol] = item.engagement;
         if (item.platform === 'web') payload['web_views'] = item.views;
 
+        // REVISI TS: Menggunakan as any[] untuk bypass "Type is not assignable to type never"
         const { error: contentError } = await supabase
           .from('contents')
-          .insert([payload]);
+          .insert([payload] as any[]);
 
         if (contentError) throw contentError;
       }
