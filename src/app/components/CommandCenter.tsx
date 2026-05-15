@@ -329,18 +329,6 @@ export default function CommandCenter() {
                 </div>
               </div>
 
-              {/* MODAL BARU: UPCOMING RUNWAY (MENGISI KEKOSONGAN) */}
-                  <div className={`flex-1 p-6 rounded-3xl border relative overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
-                    <div className="flex justify-between items-center mb-6">
-                      <div>
-                        <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Upcoming Runway</h4>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Antrean Tayang Terdekat</p>
-                      </div>
-                      <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
-                        <Activity size={16} className="animate-pulse" />
-                      </div>
-                    </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="Web / GSC" icon={<BrandIcons.Web />} platformKey="web" engagementKey="web_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
