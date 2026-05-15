@@ -1,394 +1,221 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import {
-  BarChart3,
-  Loader2,
-  Save,
-  Globe,
-  AlertCircle,
-  ChevronDown,
-} from "lucide-react";
+import React, { useState, useMemo } from 'react';
+import { UploadCloud, CheckCircle2, FileSpreadsheet, AlertCircle, Save } from 'lucide-react';
 
-/* ------------------------------------------------------------------ */
-/*  SVG BRAND ICONS (Inline agar tidak perlu install library baru)     */
-/* ------------------------------------------------------------------ */
-const MetaIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 2.04c-5.5 0-9.96 4.46-9.96 9.96 0 4.99 3.66 9.13 8.44 9.88v-7.03h-2.54v-2.9h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.23.2 2.23.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57V12h2.77l-.44 2.9h-2.33v6.99c4.78-.75 8.44-4.89 8.44-9.88 0-5.5-4.46-9.96-9.96-9.96z" />
-  </svg>
-);
+const PlatformIcons = {
+  Meta: () => <svg className="w-4 h-4 text-[#1877F2] fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+  TikTok: () => <svg className="w-4 h-4 text-[#ff0050] fill-current" viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.674c0 1.913-1.554 3.467-3.467 3.467-1.914 0-3.468-1.554-3.468-3.467 0-1.914 1.554-3.468 3.468-3.468h.078V8.761h-.078c-3.824 0-6.924 3.1-6.924 6.924 0 3.823 3.1 6.923 6.924 6.923 3.823 0 6.922-3.1 6.922-6.923v-8.15a8.175 8.175 0 0 0 6.687 2.333v-3.18z"/></svg>,
+  X: () => <svg className="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+  YT: () => <svg className="w-4 h-4 text-[#FF0000] fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.5 12 3.5 12 3.5s-7.505 0-9.377.55a3.016 3.016 0 0 0-2.122 2.136C0 8.07 0 12 0 12s0 3.93.501 5.814a3.016 3.016 0 0 0 2.122 2.136c1.872.55 9.377.55 9.377.55s7.505 0 9.377-.55a3.016 3.016 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+};
 
-const TikTokIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-  </svg>
-);
-
-const XIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-const YoutubeIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-  </svg>
-);
-
-/* ------------------------------------------------------------------ */
-/*  TIPE DATA                                                          */
-/* ------------------------------------------------------------------ */
-interface RecapFormProps {
-  isDarkMode?: boolean;
-  onRecapSuccess?: () => Promise<void> | void;
-}
-
-interface ContentItem {
-  id: string;
-  title: string;
-  publish_date?: string;
-}
-
-interface PlatformMetrics {
-  views: number;
-  engagement: number;
-}
-
-const PLATFORM_CONFIG = [
-  {
-    key: "meta" as const,
-    label: "META (FB & IG)",
-    icon: MetaIcon,
-    iconColor: "text-blue-500",
-  },
-  {
-    key: "tiktok" as const,
-    label: "TIKTOK",
-    icon: TikTokIcon,
-    iconColor: "text-pink-500",
-  },
-  {
-    key: "x_twitter" as const,
-    label: "X (TWITTER)",
-    icon: XIcon,
-    iconColor: "text-white",
-  },
-  {
-    key: "yt_shorts" as const,
-    label: "YT SHORTS",
-    icon: YoutubeIcon,
-    iconColor: "text-red-500",
-  },
-];
-
-export default function RecapForm({
-  isDarkMode = true,
-  onRecapSuccess,
-}: RecapFormProps) {
-  /* ----------------------- STATE ----------------------- */
-  const [contents, setContents] = useState<ContentItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const [metrics, setMetrics] = useState<
-    Record<(typeof PLATFORM_CONFIG)[number]["key"], PlatformMetrics>
-  >({
-    meta: { views: 0, engagement: 0 },
-    tiktok: { views: 0, engagement: 0 },
-    x_twitter: { views: 0, engagement: 0 },
-    yt_shorts: { views: 0, engagement: 0 },
+export default function RecapForm() {
+  const [selectedContent, setSelectedContent] = useState('');
+  
+  // State untuk melacak file CSV dan data hasil ekstraksi (Simulasi)
+  const [platformData, setPlatformData] = useState({
+    meta: { file: null, views: 0, eng: 0, status: 'idle' },
+    tiktok: { file: null, views: 0, eng: 0, status: 'idle' },
+    x: { file: null, views: 0, eng: 0, status: 'idle' },
+    shorts: { file: null, views: 0, eng: 0, status: 'idle' }
   });
 
-  /* ----------------------- THEME ----------------------- */
-  const bgCard = isDarkMode
-    ? "bg-[#12151a] border-gray-800"
-    : "bg-white border-gray-200";
-  const bgInput = isDarkMode
-    ? "bg-[#0b0d10] border-gray-800 text-white"
-    : "bg-gray-50 border-gray-300 text-gray-900";
-  const textTitle = isDarkMode ? "text-white" : "text-gray-900";
-  const subCardBg = isDarkMode
-    ? "bg-[#0b0d10]/50 border-gray-800/80"
-    : "bg-gray-50/50 border-gray-200";
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /* ----------------------- FETCH ----------------------- */
-  useEffect(() => {
-    const fetchContents = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("contents")
-        .select("id, title, publish_date")
-        .order("publish_date", { ascending: false });
-      if (!error && data) setContents(data as ContentItem[]);
-      setLoading(false);
-    };
-    fetchContents();
-  }, []);
+  // Fungsi Simulasi Upload CSV
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, platformKey: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  /* Jika konten dipilih, load metrik lama (opsional) */
-  useEffect(() => {
-    if (!selectedId) return;
-    const fetchExisting = async () => {
-      const { data } = await supabase
-        .from("platform_metrics") // <-- GANTI jika nama tabel Anda beda
-        .select("platform, views, engagement")
-        .eq("content_id", selectedId);
-
-      if (!data) return;
-      const map: typeof metrics = {
-        meta: { views: 0, engagement: 0 },
-        tiktok: { views: 0, engagement: 0 },
-        x_twitter: { views: 0, engagement: 0 },
-        yt_shorts: { views: 0, engagement: 0 },
-      };
-      data.forEach((row: any) => {
-        if (map[row.platform as keyof typeof map]) {
-          map[row.platform as keyof typeof map] = {
-            views: row.views || 0,
-            engagement: row.engagement || 0,
-          };
-        }
-      });
-      setMetrics(map);
-    };
-    fetchExisting();
-  }, [selectedId]);
-
-  /* ----------------------- HANDLERS ----------------------- */
-  const handleChange = (
-    platform: keyof typeof metrics,
-    field: keyof PlatformMetrics,
-    value: string
-  ) => {
-    setMetrics((prev) => ({
+    // Set status menjadi loading
+    setPlatformData(prev => ({
       ...prev,
-      [platform]: { ...prev[platform], [field]: parseInt(value) || 0 },
+      [platformKey]: { ...prev[platformKey as keyof typeof prev], status: 'processing', file: file.name }
+    }));
+
+    // Simulasi jeda membaca data CSV dengan PapaParse nantinya
+    setTimeout(() => {
+      // Mockup hasil ekstraksi cerdas dari CSV
+      const mockExtractedData = {
+        meta: { views: 12500, eng: 840 },
+        tiktok: { views: 45200, eng: 3200 },
+        x: { views: 8900, eng: 412 },
+        shorts: { views: 22100, eng: 1550 }
+      };
+
+      setPlatformData(prev => ({
+        ...prev,
+        [platformKey]: { 
+          file: file.name, 
+          views: mockExtractedData[platformKey as keyof typeof mockExtractedData].views, 
+          eng: mockExtractedData[platformKey as keyof typeof mockExtractedData].eng, 
+          status: 'success' 
+        }
+      }));
+    }, 1000);
+  };
+
+  const handleRemoveFile = (platformKey: string) => {
+    setPlatformData(prev => ({
+      ...prev,
+      [platformKey]: { file: null, views: 0, eng: 0, status: 'idle' }
     }));
   };
 
-  const globalViews = useMemo(
-    () => Object.values(metrics).reduce((s, p) => s + (p.views || 0), 0),
-    [metrics]
-  );
-  const globalEngagement = useMemo(
-    () => Object.values(metrics).reduce((s, p) => s + (p.engagement || 0), 0),
-    [metrics]
-  );
+  // Kalkulasi Auto-Sum (Langsung dari data ekstraksi CSV)
+  const globalMetrics = useMemo(() => {
+    const totalViews = Object.values(platformData).reduce((sum, plat) => sum + plat.views, 0);
+    const totalEng = Object.values(platformData).reduce((sum, plat) => sum + plat.eng, 0);
+    return { totalViews, totalEng };
+  }, [platformData]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedId) {
-      setError("Pilih konten terlebih dahulu.");
-      return;
-    }
-    setError(null);
-    setSaving(true);
+  // Komponen Reusable untuk Zona Drop CSV
+  const CSVUploadZone = ({ id, title, icon, dataKey }: { id: string, title: string, icon: React.ReactNode, dataKey: keyof typeof platformData }) => {
+    const platData = platformData[dataKey];
 
-    const rows = PLATFORM_CONFIG.map((p) => ({
-      content_id: selectedId,
-      platform: p.key,
-      views: metrics[p.key].views,
-      engagement: metrics[p.key].engagement,
-    }));
-
-    const { error: upsertError } = await supabase
-  .from("platform_metrics")
-  .upsert(rows, { onConflict: "content_id,platform" });
-
-setSaving(false);
-
-if (upsertError) {
-  setError(upsertError.message);
-  alert("Gagal menyimpan: " + upsertError.message); // Tambahkan ini
-} else {
-  alert("Data berhasil disimpan!"); // Tambahkan ini
-  await onRecapSuccess?.(); 
-  setSelectedId(""); // Reset pilihan setelah berhasil
-}
-  };
-
-  /* ----------------------- RENDER ----------------------- */
-  return (
-    <div className="max-w-5xl mx-auto p-4 animate-fadeIn">
-      <div
-        className={`border rounded-[30px] p-8 shadow-xl transition-all ${bgCard}`}
-      >
-        {/* HEADER */}
-        <div className="text-center space-y-1 mb-10">
-          <h2
-            className={`text-2xl font-black tracking-tight uppercase ${textTitle}`}
-          >
-            Rekapitulasi Pasca-Tayang
-          </h2>
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-[0.2em]">
-            Akumulasi Interaksi Riil Saluran Distribusi
-          </p>
+    return (
+      <div className={`p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+        platData.status === 'success' 
+          ? 'bg-emerald-500/10 border-emerald-500/30' 
+          : 'bg-[#0b0d10] border-gray-800 hover:border-gray-600'
+      }`}>
+        {/* Header Platform */}
+        <div className="flex items-center gap-2 mb-4">
+          {icon}
+          <h4 className="text-xs font-black text-white uppercase tracking-wider">{title}</h4>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* SELECT KONTEN */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">
-              Pilih Naskah Mengudara
-            </label>
-            <div className="relative">
-              <select
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                className={`w-full border p-4 pr-10 rounded-xl font-semibold outline-none focus:border-[#008234] transition-all text-sm appearance-none ${bgInput}`}
-              >
-                <option value="">-- Pilih Konten untuk Direkap --</option>
-                {contents.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title} {c.publish_date ? `(${c.publish_date})` : ""}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-                size={16}
-              />
+        {/* State 1: Belum Upload (Idle) */}
+        {platData.status === 'idle' && (
+          <div className="border-2 border-dashed border-gray-700 hover:border-emerald-500/50 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group relative">
+            <input 
+              type="file" 
+              accept=".csv" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              onChange={(e) => handleFileUpload(e, dataKey)}
+            />
+            <UploadCloud className="w-8 h-8 text-gray-500 group-hover:text-emerald-400 mb-2 transition-colors" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Unggah CSV {title}</span>
+            <span className="text-[9px] text-gray-600 mt-1 block">Tarik & lepas file di sini</span>
+          </div>
+        )}
+
+        {/* State 2: Sedang Memproses (Processing) */}
+        {platData.status === 'processing' && (
+          <div className="p-6 flex flex-col items-center justify-center">
+            <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-3"></div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">Mengekstraksi Data...</span>
+          </div>
+        )}
+
+        {/* State 3: Sukses Terbaca (Success) */}
+        {platData.status === 'success' && (
+          <div className="space-y-4 animate-fadeIn relative z-10">
+            <div className="flex items-start justify-between bg-[#12151a] p-3 rounded-xl border border-emerald-500/20">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+                <div className="truncate pr-4">
+                  <p className="text-[10px] font-bold text-emerald-400 truncate max-w-[150px]">{platData.file}</p>
+                  <p className="text-[8px] text-gray-500 uppercase tracking-wider">CSV Terbaca Valid</p>
+                </div>
+              </div>
+              <button onClick={() => handleRemoveFile(dataKey)} className="text-gray-500 hover:text-red-400 p-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#0b0d10] p-3 rounded-xl border border-gray-800">
+                <span className="text-[8px] uppercase font-bold text-gray-500 block mb-0.5">Jangkauan (Reach)</span>
+                <span className="text-lg font-black text-white">{platData.views.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="bg-[#0b0d10] p-3 rounded-xl border border-gray-800">
+                <span className="text-[8px] uppercase font-bold text-gray-500 block mb-0.5">Interaksi (Eng)</span>
+                <span className="text-lg font-black text-white">{platData.eng.toLocaleString('id-ID')}</span>
+              </div>
             </div>
           </div>
+        )}
+      </div>
+    );
+  };
 
-          {/* RINCIAN INTERAKSI PER PLATFORM */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Globe size={14} className="text-[#008234]" />
-              <h3
-                className={`text-[10px] font-black uppercase tracking-widest ${textTitle}`}
-              >
-                Rincian Interaksi Platform
-              </h3>
-            </div>
+  return (
+    <div className="space-y-6 animate-fadeIn max-w-5xl mx-auto">
+      <div className="bg-[#12151a] rounded-[35px] border border-gray-800 p-8 md:p-10 shadow-2xl">
+        
+        {/* HEADER */}
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Rekapitulasi Cerdas CSV</h2>
+          <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-bold">Ekstraksi Metrik Otomatis Lintas Platform</p>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {PLATFORM_CONFIG.map((p) => {
-                const Icon = p.icon;
-                const data = metrics[p.key];
-                return (
-                  <div
-                    key={p.key}
-                    className={`p-5 rounded-2xl border space-y-4 ${subCardBg}`}
-                  >
-                    {/* Card Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon className={`w-5 h-5 ${p.iconColor}`} />
-                        <span
-                          className={`text-xs font-bold uppercase tracking-wider ${textTitle}`}
-                        >
-                          {p.label}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Inputs */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block ml-1">
-                          Views
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={data.views || ""}
-                          onChange={(e) =>
-                            handleChange(p.key, "views", e.target.value)
-                          }
-                          placeholder="0"
-                          className={`w-full border p-3 rounded-xl font-bold text-sm outline-none focus:border-[#008234] transition-all ${bgInput}`}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block ml-1">
-                          Engagement
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={data.engagement || ""}
-                          onChange={(e) =>
-                            handleChange(p.key, "engagement", e.target.value)
-                          }
-                          placeholder="0"
-                          className={`w-full border p-3 rounded-xl font-bold text-sm outline-none focus:border-[#008234] transition-all ${bgInput}`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* AKUMULASI GLOBAL (READ-ONLY) */}
-          <div
-            className={`p-5 rounded-2xl border space-y-4 ${subCardBg}`}
+        {/* PILIH NASKAH */}
+        <div className="mb-10">
+          <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest block mb-2">Pilih Naskah Mengudara</label>
+          <select 
+            value={selectedContent} 
+            onChange={(e) => setSelectedContent(e.target.value)}
+            className="w-full bg-[#0b0d10] border border-gray-800 text-white text-sm font-bold py-4 px-5 rounded-2xl outline-none focus:border-emerald-500 transition-colors cursor-pointer appearance-none"
           >
-            <h4 className="text-[10px] font-black text-[#008234] uppercase tracking-wider flex items-center gap-2">
-              <BarChart3 size={14} />
-              Akumulasi Global (Auto-sum)
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Total Jangkauan (Views)
-                </p>
-                <p
-                  className={`text-2xl font-black tracking-tight ${textTitle}`}
-                >
-                  {globalViews.toLocaleString("id-ID")}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                  Total Interaksi (Engagement)
-                </p>
-                <p
-                  className={`text-2xl font-black tracking-tight ${textTitle}`}
-                >
-                  {globalEngagement.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-            <p className="text-[10px] text-gray-500">
-              * Angka di atas dihitung otomatis dari rincian platform. Tidak
-              perlu diisi manual.
-            </p>
-          </div>
+            <option value="">-- Pilih Konten untuk Direkap --</option>
+            <option value="1">Daftar 10 Juta Pekerja yang Dapat Jaminan Sosial</option>
+            <option value="2">Manifesto Arah Baru Pembangunan Desa</option>
+          </select>
+        </div>
 
-          {/* ERROR */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center gap-3 text-red-500">
-              <AlertCircle size={18} />
-              <span className="text-xs font-bold">{error}</span>
+        {/* ZONA UPLOAD 4 PLATFORM */}
+        <div className="mb-4">
+          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-4 flex items-center gap-2">
+            <AlertCircle size={14} className="text-emerald-500" /> Wajib: Unggah CSV Resmi dari Masing-Masing Platform
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CSVUploadZone id="csv-meta" title="Meta (FB & IG)" icon={<PlatformIcons.Meta />} dataKey="meta" />
+            <CSVUploadZone id="csv-tiktok" title="TikTok" icon={<PlatformIcons.TikTok />} dataKey="tiktok" />
+            <CSVUploadZone id="csv-x" title="X (Twitter)" icon={<PlatformIcons.X />} dataKey="x" />
+            <CSVUploadZone id="csv-shorts" title="YT Shorts" icon={<PlatformIcons.YT />} dataKey="shorts" />
+          </div>
+        </div>
+
+        {/* AKUMULASI GLOBAL AUTO-SUM */}
+        <div className="mt-8 p-6 bg-[#0b0d10] rounded-2xl border border-gray-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl"></div>
+          
+          <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+            <span>📊</span> Akumulasi Global (Auto-Sum Ekstraksi)
+          </h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Total Jangkauan (Views/Reach)</span>
+              <div className="text-4xl font-black text-white">{globalMetrics.totalViews.toLocaleString('id-ID')}</div>
             </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Total Interaksi (Engagement)</span>
+              <div className="text-4xl font-black text-white">{globalMetrics.totalEng.toLocaleString('id-ID')}</div>
+            </div>
+          </div>
+          <p className="text-[9px] text-gray-600 mt-6 font-bold">* Angka di atas dihitung otomatis secara presisi dari file CSV yang Anda unggah.</p>
+        </div>
+
+        {/* TOMBOL SUBMIT */}
+        <button 
+          disabled={!selectedContent || isSubmitting}
+          className={`w-full mt-8 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
+            !selectedContent 
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+              : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 active:scale-[0.98]'
+          }`}
+        >
+          {isSubmitting ? (
+            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+          ) : (
+            <>
+              <Save size={16} /> Simpan Metrik Terekstraksi
+            </>
           )}
+        </button>
 
-          {/* SUBMIT */}
-          <button
-            type="submit"
-            disabled={saving || !selectedId}
-            className="w-full bg-[#008234] hover:bg-[#006b2a] disabled:opacity-50 disabled:cursor-not-allowed text-white py-5 rounded-2xl font-black text-xs shadow-xl shadow-green-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="animate-spin" size={18} />
-                <span>MENYIMPAN METRIK...</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span>SIMPAN METRIK PLATFORM</span>
-              </>
-            )}
-          </button>
-        </form>
       </div>
     </div>
   );
