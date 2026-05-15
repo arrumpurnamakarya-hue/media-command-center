@@ -23,6 +23,7 @@ interface PreviewItem {
   platform: string;
   views: number;
   engagement: number;
+  publish_date: string; // Dipertahankan agar sinkronisasi grafik dan target mingguan berfungsi
 }
 
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
@@ -51,85 +52,119 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       const text = event.target?.result as string;
       if (!text) return;
 
-      const rows = text.split(/\r?\n/);
-      if (rows.length < 2) return;
+      const parsedRows: string[][] = [];
+      let currentRow: string[] = [];
+      let currentVal = '';
+      let insideQuote = false;
 
-      const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (insideQuote && nextChar === '"') {
+            currentVal += '"';
+            i++; 
+          } else {
+            insideQuote = !insideQuote;
+          }
+        } else if (char === ',' && !insideQuote) {
+          currentRow.push(currentVal.trim());
+          currentVal = '';
+        } else if ((char === '\n' || char === '\r') && !insideQuote) {
+          if (char === '\r' && nextChar === '\n') i++;
+          currentRow.push(currentVal.trim());
+          if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
+          currentRow = [];
+          currentVal = '';
+        } else {
+          currentVal += char;
+        }
+      }
+      if (currentVal || currentRow.length > 0) {
+        currentRow.push(currentVal.trim());
+        if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
+      }
+
+      if (parsedRows.length < 2) {
+         setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'idle', file: null } }));
+         return;
+      }
+
+      // ==========================================
+      // MESIN PEMBACA KEBAL KARAKTER TERSEMBUNYI
+      // ==========================================
+      const headers = parsedRows[0].map(h => h.replace(/"/g, '').trim().toLowerCase());
       const parsedData: PreviewItem[] = [];
 
-      for(let i = 1; i < rows.length; i++) {
-        const rowString = rows[i];
-        if(!rowString.trim()) continue;
+      for(let i = 1; i < parsedRows.length; i++) {
+        const rowValues = parsedRows[i];
 
-        const rowValues: string[] = [];
-        let insideQuote = false;
-        let currentVal = '';
-        
-        for(let j = 0; j < rowString.length; j++) {
-          const char = rowString[j];
-          if(char === '"') {
-            insideQuote = !insideQuote;
-          } else if(char === ',' && !insideQuote) {
-            rowValues.push(currentVal.trim());
-            currentVal = '';
-          } else {
-            currentVal += char;
-          }
-        }
-        rowValues.push(currentVal.trim());
-
+        // MENGGUNAKAN .includes() AGAR FACEBOOK TERBACA MESKI ADA KARAKTER BOM
         const getVal = (colName: string) => {
-          const idx = headers.findIndex(h => h === colName.toLowerCase());
-          if(idx === -1) return "0";
-          let rawVal = rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "0";
-          return rawVal.replace(/,/g, '').replace(/\./g, '');
+          const idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
+          if(idx === -1) return "";
+          let rawVal = rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "";
+          return rawVal.trim();
+        };
+
+        const getNum = (colName: string) => {
+           const val = getVal(colName).replace(/,/g, '').replace(/\./g, '');
+           return parseInt(val) || 0;
         };
 
         let caption = "";
         let views = 0;
         let engagement = 0;
+        let pDate = new Date().toISOString().split('T')[0];
 
         if (platformKey === 'web') {
           let rawUrl = getVal("top pages");
           caption = rawUrl.replace('https://pkbgarut.id/', '').replace(/-/g, ' ').replace(/\//g, '') || "Halaman Utama Website";
-          views = parseInt(getVal("impressions")) || 0;
-          engagement = parseInt(getVal("clicks")) || 0;
+          views = getNum("impressions");
+          engagement = getNum("clicks");
           
         } else if (platformKey === 'tiktok') {
           caption = getVal("video title");
-          views = parseInt(getVal("total views")) || 0;
-          let likes = parseInt(getVal("total likes")) || 0;
-          let comments = parseInt(getVal("total comments")) || 0;
-          let shares = parseInt(getVal("total shares")) || 0;
-          engagement = likes + comments + shares;
+          views = getNum("total views");
+          engagement = getNum("total likes") + getNum("total comments") + getNum("total shares");
+          
+          let rawDate = getVal("post time");
+          if(rawDate) {
+             if (rawDate.toLowerCase().includes('april')) pDate = '2026-04-' + rawDate.split(' ')[0].padStart(2, '0');
+             else if (rawDate.toLowerCase().includes('mei')) pDate = '2026-05-' + rawDate.split(' ')[0].padStart(2, '0');
+          }
           
         } else {
-          // ========================================================
-          // REVISI HANYA DI BLOK INI: Mengakomodasi CSV Facebook & IG
-          // ========================================================
-          let deskripsi = getVal("deskripsi");
-          let judul = getVal("judul");
-          caption = deskripsi !== "0" ? deskripsi : (judul !== "0" ? judul : "");
+          // LOGIKA UNTUK MENANGKAP CSV FB DAN IG SEKALIGUS
+          caption = getVal("deskripsi") || getVal("judul") || getVal("title") || "";
+          views = getNum("tayangan") || getNum("jangkauan") || getNum("impresi") || 0;
           
-          views = parseInt(getVal("tayangan")) || parseInt(getVal("jangkauan")) || parseInt(getVal("impresi")) || 0;
-          
-          let likes = parseInt(getVal("suka")) || parseInt(getVal("tanggapan")) || 0;
-          let comments = parseInt(getVal("komentar")) || 0;
-          let shares = parseInt(getVal("frekuensi dibagikan")) || 0;
-          let saves = parseInt(getVal("frekuensi disimpan")) || parseInt(getVal("penyimpanan")) || 0;
-          let interaksi = parseInt(getVal("interaksi")) || 0;
+          let likes = getNum("suka") || getNum("tanggapan");
+          let comments = getNum("komentar");
+          let shares = getNum("frekuensi dibagikan") || getNum("bagikan");
+          let saves = getNum("frekuensi disimpan") || getNum("penyimpanan");
+          let interaksi = getNum("interaksi");
           
           engagement = interaksi > 0 ? interaksi : (likes + comments + shares + saves);
-          // ========================================================
+
+          let rawDate = getVal("waktu penerbitan") || getVal("tanggal");
+          if(rawDate) {
+             const parts = rawDate.split(' ')[0].split('/');
+             if(parts.length === 3) {
+                pDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+             }
+          }
         }
 
-        if(caption && caption !== "0" && (views > 0 || engagement > 0)) {
+        if(caption && (views > 0 || engagement > 0)) {
           parsedData.push({
             title: caption.substring(0, 65) + (caption.length > 65 ? '...' : ''), 
             full_caption: caption,
             platform: platformKey,
             views: views,
-            engagement: engagement
+            engagement: engagement,
+            publish_date: pDate
           });
         }
       }
@@ -175,6 +210,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           pub_status: 'Posted',
           prod_status: 'Completed',
           pillar: 'Imported Data',
+          publish_date: item.publish_date,
           views: item.views,
           engagement: item.engagement,
           platforms: [item.platform.toUpperCase()]
@@ -279,8 +315,8 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
               <table className="w-full text-left">
                 <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-[#0b0d10]' : 'bg-gray-50'}`}>
                   <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-500/20 pb-2">
-                    <th className="pb-3 px-4 font-black">Teks / Caption dari CSV</th>
-                    <th className="pb-3 px-4 font-black">Platform</th>
+                    <th className="pb-3 px-4 font-black">Tanggal</th>
+                    <th className="pb-3 px-4 font-black">Teks / Caption</th>
                     <th className="pb-3 px-4 font-black text-right">Tayangan (Reach)</th>
                     <th className="pb-3 px-4 font-black text-right">Total Interaksi</th>
                   </tr>
@@ -288,8 +324,8 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
                 <tbody className="text-[11px] font-bold divide-y divide-gray-500/10">
                   {previewData.map((d, i) => (
                     <tr key={i} className="hover:bg-white/5 transition-colors">
+                      <td className="py-4 px-4 font-mono text-gray-500">{d.publish_date}</td>
                       <td className={`py-4 px-4 max-w-[300px] leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{d.title}</td>
-                      <td className="py-4 px-4 uppercase text-[#008234]">{d.platform}</td>
                       <td className="py-4 px-4 text-right text-blue-400 font-roboto text-sm">{d.views.toLocaleString('id-ID')}</td>
                       <td className="py-4 px-4 text-right text-emerald-400 font-roboto text-sm">{d.engagement.toLocaleString('id-ID')}</td>
                     </tr>
