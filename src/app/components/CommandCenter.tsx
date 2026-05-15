@@ -67,6 +67,9 @@ export default function CommandCenter() {
   const [globalEng, setGlobalEng] = useState(0);
   const [platformStats, setPlatformStats] = useState({ web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 });
 
+  // STATE UNTUK MODAL POP-UP HISTORI LENGKAP
+  const [selectedPlatformModal, setSelectedPlatformModal] = useState<{ title: string, key: string, engKey: keyof ContentPlan, icon: React.ReactNode } | null>(null);
+
   const fetchContentsAndStats = async () => {
     try {
       setLoadingContents(true);
@@ -145,12 +148,14 @@ export default function CommandCenter() {
           ) : (
             <div className="space-y-4">
               {top5Contents.map((p) => (
-                <div key={p.id} className="flex justify-between items-center group">
-                  <div className={`text-[11px] font-bold truncate pr-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
-                    {p.title}
-                  </div>
-                  <div className="text-[11px] font-black text-emerald-400 font-roboto">
-                    {formatNumberMax(Number(p[engagementKey] || 0))}
+                <div key={p.id} className="flex flex-col group border-b border-gray-500/5 pb-2 last:border-0">
+                  <div className={`text-[11px] font-bold truncate pr-4 mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{p.title}</div>
+                  <div className="flex justify-between items-center text-[9px] text-gray-500">
+                    <span>{p.publish_date}</span>
+                    <div className="flex gap-2">
+                      <span><Eye size={10} className="inline mr-1"/>{formatNumberMax(Number(platformKey === 'web' ? p.web_views : p.views || 0))}</span>
+                      <span className="font-black text-emerald-400"><MousePointer2 size={10} className="inline mr-1"/>{formatNumberMax(Number(p[engagementKey] || 0))}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -158,8 +163,9 @@ export default function CommandCenter() {
           )}
         </div>
         
+        {/* Tombol Membuka Modal */}
         <button 
-          onClick={() => setActiveTab('reports')} 
+          onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} 
           className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}
         >
           Lihat Seluruh {title}
@@ -191,7 +197,7 @@ export default function CommandCenter() {
         </nav>
       </aside>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
         <header className={`h-20 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
           <div className="md:hidden"><Menu onClick={() => setMobileMenuOpen(true)} size={20} className="cursor-pointer" /></div>
@@ -231,12 +237,11 @@ export default function CommandCenter() {
           </div>
         </header>
 
-        <main className="p-8 overflow-y-auto space-y-8">
+        <main className="p-8 overflow-y-auto space-y-8 relative">
           
           {activeTab === 'dashboard' && (
             <div className="animate-fadeIn space-y-8">
               
-              {/* DIKEMBALIKAN: 4 HERO METRICS ATAS (REACH, ENG, POST, WEB) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
                   <div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Reach</p><div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Eye size={16} /></div></div>
@@ -260,7 +265,6 @@ export default function CommandCenter() {
                 </div>
               </div>
 
-              {/* 6 KARTU PLATFORM BREAKDOWN AKUMULATIF */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
                   { label: 'Website', icon: <BrandIcons.Web />, val: platformStats.web, sub: 'IMPRESSIONS' },
@@ -283,7 +287,6 @@ export default function CommandCenter() {
                 ))}
               </div>
 
-              {/* GRAFIK 30 HARI, TARGET BULANAN, & MINGGUAN */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -321,11 +324,11 @@ export default function CommandCenter() {
                 </div>
 
                 <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm h-fit`}>
-                  <TargetTracker />
+                  {/* SINKRONISASI TARGET TRACKER */}
+                  <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
                 </div>
               </div>
 
-              {/* 6 TABEL HISTORI PLATFORM MENGUDARA (TOP 5) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="Web / GSC" icon={<BrandIcons.Web />} platformKey="web" engagementKey="web_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
@@ -346,6 +349,62 @@ export default function CommandCenter() {
               <CheckSquare size={48} className="mx-auto mb-4 text-[#008234] opacity-50" />
               <h2 className="text-xl font-black uppercase tracking-widest mb-2">Papan Jobdesk Redaksi</h2>
               <p className="text-xs font-bold">Katalog Instruksi dipindahkan ke sini. Modul sedang dalam tahap perakitan.</p>
+            </div>
+          )}
+
+          {/* MODAL POP-UP HISTORI SELURUHNYA */}
+          {selectedPlatformModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn p-4">
+              <div className={`w-full max-w-3xl rounded-[35px] shadow-2xl border flex flex-col max-h-[85vh] overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+                
+                {/* Header Modal */}
+                <div className="p-6 md:p-8 flex justify-between items-center border-b border-gray-500/10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gray-500/10 rounded-2xl">{selectedPlatformModal.icon}</div>
+                    <div>
+                      <h2 className={`text-xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Histori {selectedPlatformModal.title}
+                      </h2>
+                      <p className="text-[10px] text-gray-400 font-bold tracking-widest uppercase mt-1">Daftar Arsip Seluruh Konten Mengudara</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedPlatformModal(null)} className="p-2 bg-gray-500/10 rounded-full hover:bg-gray-500/20 transition-all text-gray-400 hover:text-white">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Isi Modal (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8">
+                  <table className="w-full text-left">
+                    <thead className="sticky top-0 bg-opacity-90 backdrop-blur-md z-10">
+                      <tr className={`text-[10px] uppercase font-black tracking-widest border-b ${isDarkMode ? 'text-gray-500 border-gray-800 bg-[#12151a]' : 'text-gray-400 border-gray-100 bg-white'}`}>
+                        <th className="pb-4 px-2">Tanggal</th>
+                        <th className="pb-4 px-2">Judul Konten</th>
+                        <th className="pb-4 px-2 text-right">Reach</th>
+                        <th className="pb-4 px-2 text-right">Engagement</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[11px] font-bold divide-y divide-gray-500/10">
+                      {postedContents
+                        .filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[selectedPlatformModal.engKey]) > 0))
+                        .sort((a, b) => new Date(b.publish_date || '').getTime() - new Date(a.publish_date || '').getTime()) // Urutkan berdasarkan tanggal terbaru
+                        .map(p => (
+                          <tr key={p.id} className="hover:bg-white/5 transition-colors">
+                            <td className="py-4 px-2 text-gray-500 font-mono whitespace-nowrap">{p.publish_date}</td>
+                            <td className={`py-4 px-2 max-w-[250px] truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{p.title}</td>
+                            <td className="py-4 px-2 text-right text-blue-400 font-roboto">{formatNumberMax(Number(selectedPlatformModal.key === 'web' ? p.web_views : p.views || 0))}</td>
+                            <td className="py-4 px-2 text-right text-emerald-400 font-roboto">{formatNumberMax(Number(p[selectedPlatformModal.engKey] || 0))}</td>
+                          </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {postedContents.filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[selectedPlatformModal.engKey]) > 0)).length === 0 && (
+                    <div className="text-center py-12 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                      Tidak ada data yang ditemukan
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
