@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, Save, AlertCircle, RefreshCw, Globe } from 'lucide-react';
+import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe } from 'lucide-react';
 
 const PlatformIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -17,55 +17,104 @@ interface RecapFormProps {
   onRecapSuccess?: () => void | Promise<void>;
 }
 
+// 1. INI ADALAH "KTP" RESMI AGAR TYPESCRIPT VERCEL TIDAK PROTES
+interface PreviewItem {
+  title: string;
+  full_caption: string;
+  platform: string;
+  views: number;
+  engagement: number;
+}
+
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
-  const [dbContents, setDbContents] = useState<any[]>([]);
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  // 2. KITA PASANG KTP-NYA DI SINI
+  const [previewData, setPreviewData] = useState<PreviewItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [platformStatus, setPlatformStatus] = useState({
-    web: { file: null, status: 'idle' },
-    ig: { file: null, status: 'idle' },
-    fb: { file: null, status: 'idle' },
-    tiktok: { file: null, status: 'idle' },
-    x: { file: null, status: 'idle' },
-    yt: { file: null, status: 'idle' }
+    web: { file: null as string | null, status: 'idle' },
+    ig: { file: null as string | null, status: 'idle' },
+    fb: { file: null as string | null, status: 'idle' },
+    tiktok: { file: null as string | null, status: 'idle' },
+    x: { file: null as string | null, status: 'idle' },
+    yt: { file: null as string | null, status: 'idle' }
   });
 
-  // Ambil naskah dari database untuk pencocokan
-  useEffect(() => {
-    const fetchDB = async () => {
-      const { data } = await supabase.from('contents').select('id, title, caption, pub_status').eq('pub_status', 'Posted');
-      if (data) setDbContents(data);
-    };
-    fetchDB();
-  }, []);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, platformKey: string) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, platformKey: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'processing', file: file.name as any } }));
+    setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'processing', file: file.name } }));
 
-    // Simulasi Smart Sync (Mencocokkan baris CSV dengan Database)
-    // Di produksi nyata, kita akan menggunakan FileReader() + PapaParse di sini
-    setTimeout(() => {
-      // Mockup Data yang "Berhasil Ditemukan"
-      const matchedMocks = dbContents.slice(0, 3).map(dbItem => ({
-        content_id: dbItem.id,
-        title: dbItem.title,
-        platform: platformKey,
-        views: Math.floor(Math.random() * 50000) + 1000,
-        engagement: Math.floor(Math.random() * 5000) + 100,
-      }));
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      const rows = text.split('\n');
+      if (rows.length < 2) return;
+
+      const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      const parsedData: PreviewItem[] = [];
+
+      for(let i = 1; i < rows.length; i++) {
+        const rowString = rows[i];
+        if(!rowString.trim()) continue;
+
+        const rowValues: string[] = [];
+        let insideQuote = false;
+        let currentVal = '';
+        
+        for(let j = 0; j < rowString.length; j++) {
+          const char = rowString[j];
+          if(char === '"') {
+            insideQuote = !insideQuote;
+          } else if(char === ',' && !insideQuote) {
+            rowValues.push(currentVal.trim());
+            currentVal = '';
+          } else {
+            currentVal += char;
+          }
+        }
+        rowValues.push(currentVal.trim());
+
+        const getVal = (colName: string) => {
+          const idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
+          if(idx === -1) return "0";
+          return rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "0";
+        };
+
+        const caption = getVal("Deskripsi") || getVal("Text") || getVal("Judul") || getVal("Title");
+        const views = parseInt(getVal("Tayangan") || getVal("Reach") || getVal("Impressions") || getVal("Views")) || 0;
+        
+        const likes = parseInt(getVal("Suka") || getVal("Likes")) || 0;
+        const comments = parseInt(getVal("Komentar") || getVal("Comments")) || 0;
+        const shares = parseInt(getVal("Frekuensi dibagikan") || getVal("Shares")) || 0;
+        const saves = parseInt(getVal("Frekuensi Disimpan") || getVal("Saves")) || 0;
+        const clicks = parseInt(getVal("Clicks") || getVal("Klik")) || 0;
+        
+        const engagement = likes + comments + shares + saves + clicks;
+
+        if(caption && (views > 0 || engagement > 0)) {
+          parsedData.push({
+            title: caption.substring(0, 60) + (caption.length > 60 ? '...' : ''), 
+            full_caption: caption,
+            platform: platformKey,
+            views: views,
+            engagement: engagement
+          });
+        }
+      }
 
       setPreviewData(prev => {
-        // Hapus data lama dari platform yang sama jika upload ulang
         const filtered = prev.filter(p => p.platform !== platformKey);
-        return [...filtered, ...matchedMocks];
+        return [...filtered, ...parsedData];
       });
 
-      setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'success', file: file.name as any } }));
-    }, 1500);
+      setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'success', file: file.name } }));
+    };
+    
+    reader.readAsText(file);
   };
 
   const handleRemoveFile = (platformKey: string) => {
@@ -77,24 +126,32 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
     if (previewData.length === 0) return;
     setIsSubmitting(true);
     try {
-      // Menyimpan data massal ke tabel 'platform_metrics'
-      const { error } = await supabase.from('platform_metrics').upsert(
-        previewData.map(d => ({
-          content_id: d.content_id,
-          platform: d.platform,
-          views: d.views,
-          engagement: d.engagement,
-          updated_at: new Date().toISOString()
-        })),
-        { onConflict: 'content_id, platform' } // Pastikan ada Unique Constraint di DB
-      );
+      for (const item of previewData) {
+        const { data: contentData, error: contentError } = await supabase
+          .from('contents')
+          .insert([{
+            title: item.title,
+            caption: item.full_caption,
+            pub_status: 'Posted',
+            prod_status: 'Completed',
+            pillar: 'Imported Data'
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (contentError) throw contentError;
+
+        await supabase.from('platform_metrics').insert([{
+          content_id: contentData.id,
+          platform: item.platform,
+          views: item.views,
+          engagement: item.engagement
+        }]);
+      }
       
-      alert("✅ Sinkronisasi Massal Berhasil!");
+      alert("✅ Sinkronisasi Massal Berhasil! Data Historis telah masuk ke Reports.");
       if (onRecapSuccess) await onRecapSuccess();
       
-      // Reset State
       setPreviewData([]);
       setPlatformStatus({
         web: { file: null, status: 'idle' }, ig: { file: null, status: 'idle' },
@@ -137,7 +194,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         ) : platData.status === 'processing' ? (
           <div className="p-6 flex flex-col items-center justify-center">
             <RefreshCw className="w-6 h-6 text-emerald-500 animate-spin mb-3" />
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">Mengekstraksi & Mencocokkan...</span>
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">Membaca File CSV...</span>
           </div>
         ) : (
           <div className="p-4 bg-black/20 rounded-xl border border-emerald-500/20 flex flex-col items-center text-center">
@@ -156,10 +213,9 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         <div className="text-center mb-10">
           <h2 className={`text-2xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Smart Bulk Sync Engine</h2>
-          <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-bold">Unggah CSV, Sistem Akan Mencocokkan Otomatis ke Database</p>
+          <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-bold">Unggah CSV, Sistem Akan Mengimpor Data Historis Secara Otomatis</p>
         </div>
 
-        {/* 6 ZONA UPLOAD */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
           <CSVUploadZone title="Website (GSC)" icon={<PlatformIcons.Web />} dataKey="web" />
           <CSVUploadZone title="Instagram" icon={<PlatformIcons.IG />} dataKey="ig" />
@@ -169,33 +225,32 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           <CSVUploadZone title="YT Shorts" icon={<PlatformIcons.YT />} dataKey="yt" />
         </div>
 
-        {/* TABEL PREVIEW HASIL PENCOCOKAN */}
         {previewData.length > 0 && (
           <div className={`p-6 rounded-3xl border animate-fadeIn mb-8 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Preview Sinkronisasi</h4>
-                <p className="text-[10px] text-gray-500 mt-1 font-bold">Memuat {previewData.length} entri metrik baru siap diproses</p>
+                <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Data Asli dari CSV</h4>
+                <p className="text-[10px] text-gray-500 mt-1 font-bold">Memuat {previewData.length} baris data historis yang siap diimpor ke Reports</p>
               </div>
             </div>
             
-            <div className="overflow-x-auto max-h-64 overflow-y-auto">
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full text-left">
                 <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-[#0b0d10]' : 'bg-gray-50'}`}>
                   <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-500/20 pb-2">
-                    <th className="pb-3 px-4 font-black">Naskah Ditemukan</th>
-                    <th className="pb-3 px-4 font-black">Sumber CSV</th>
-                    <th className="pb-3 px-4 font-black text-right">Reach Extracted</th>
-                    <th className="pb-3 px-4 font-black text-right">Eng. Extracted</th>
+                    <th className="pb-3 px-4 font-black">Teks / Caption dari CSV</th>
+                    <th className="pb-3 px-4 font-black">Platform</th>
+                    <th className="pb-3 px-4 font-black text-right">Tayangan (Reach)</th>
+                    <th className="pb-3 px-4 font-black text-right">Total Interaksi</th>
                   </tr>
                 </thead>
                 <tbody className="text-[11px] font-bold divide-y divide-gray-500/10">
                   {previewData.map((d, i) => (
                     <tr key={i} className="hover:bg-white/5 transition-colors">
-                      <td className={`py-3 px-4 max-w-[200px] truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{d.title}</td>
-                      <td className="py-3 px-4 uppercase text-[#008234]">{d.platform}</td>
-                      <td className="py-3 px-4 text-right text-blue-400 font-roboto">{d.views.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-4 text-right text-emerald-400 font-roboto">{d.engagement.toLocaleString('id-ID')}</td>
+                      <td className={`py-4 px-4 max-w-[300px] leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{d.title}</td>
+                      <td className="py-4 px-4 uppercase text-[#008234]">{d.platform}</td>
+                      <td className="py-4 px-4 text-right text-blue-400 font-roboto text-sm">{d.views.toLocaleString('id-ID')}</td>
+                      <td className="py-4 px-4 text-right text-emerald-400 font-roboto text-sm">{d.engagement.toLocaleString('id-ID')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -213,7 +268,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
               : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 active:scale-[0.98]'
           }`}
         >
-          {isSubmitting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save size={16} /> KONFIRMASI & SIMPAN MASSAL</>}
+          {isSubmitting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save size={16} /> IMPOR MASSAL KE REPORTS</>}
         </button>
 
       </div>
@@ -221,7 +276,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
   );
 }
 
-// Icon helper
 function XIcon(props: any) {
   return <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>;
 }
