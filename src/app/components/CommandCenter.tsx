@@ -74,7 +74,6 @@ export default function CommandCenter() {
 
   const [selectedPlatformModal, setSelectedPlatformModal] = useState<{ title: string, key: string, engKey: keyof ContentPlan, icon: React.ReactNode } | null>(null);
 
-  // LOGIKA KLIK DI LUAR (OUTSIDE CLICK)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifications(false);
@@ -97,7 +96,6 @@ export default function CommandCenter() {
         rawContents.forEach(c => {
            totalV += Number(c.views || 0);
            totalE += Number(c.engagement || 0);
-
            pStats.web += Number(c.web_views || 0);
            pStats.ig += Number(c.ig_engagement || 0);
            pStats.fb += Number(c.fb_engagement || 0);
@@ -109,14 +107,8 @@ export default function CommandCenter() {
         const sortedContents = rawContents.sort((a, b) => new Date(b.publish_date || '').getTime() - new Date(a.publish_date || '').getTime());
         setAllContents(sortedContents);
       }
-
-      setGlobalViews(totalV);
-      setGlobalEng(totalE);
-      setPlatformStats(pStats);
-
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    } finally {
+      setGlobalViews(totalV); setGlobalEng(totalE); setPlatformStats(pStats);
+    } catch (err) { console.error("Error fetching data:", err); } finally {
       setLoadingContents(false);
       try {
         const wpRes = await fetch('https://pkbgarut.id/wp-json/wp/v2/posts?per_page=1&status=publish');
@@ -127,7 +119,6 @@ export default function CommandCenter() {
 
   useEffect(() => { fetchContentsAndStats(); }, []);
 
-  // SINKRONISASI TREN CHART 30 HARI
   const dynamicChartData = useMemo(() => {
     const data = [];
     for (let i = 29; i >= 0; i--) {
@@ -144,7 +135,6 @@ export default function CommandCenter() {
     return data;
   }, [allContents]);
 
-  // SINKRONISASI DISTRIBUSI PILAR DONUT CHART
   const pillarDistributionData = useMemo(() => {
     const counts: Record<string, number> = {};
     allContents.forEach(c => {
@@ -158,10 +148,7 @@ export default function CommandCenter() {
   }, [allContents]);
 
   const postedContents = allContents.filter(c => c.pub_status === 'Posted');
-  
-  const upcomingRunway = allContents
-    .filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted')
-    .slice(0, 4);
+  const upcomingRunway = allContents.filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted').slice(0, 4);
 
   const statusCounts = {
     editing: allContents.filter(p => p.prod_status === 'Editing/Design'),
@@ -171,53 +158,28 @@ export default function CommandCenter() {
   const formatNumberMax = (num: number) => num > 9999 ? `${(num/1000).toFixed(1)}K` : num.toLocaleString('id-ID');
 
   const PlatformHistoryTable = ({ title, icon, platformKey, engagementKey }: { title: string, icon: React.ReactNode, platformKey: string, engagementKey: keyof ContentPlan }) => {
-    const platformContents = postedContents.filter(c => 
-      c.platforms?.includes(platformKey.toUpperCase()) || 
-      (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)
-    ).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
-
+    const platformContents = postedContents.filter(c => c.platforms?.includes(platformKey.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
     const top5Contents = platformContents.slice(0, 5);
 
     return (
       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
         <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
-          <div className="flex items-center gap-3">
-            {icon}
-            <div>
-              <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
-              <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
-            </div>
-          </div>
+          <div className="flex items-center gap-3">{icon}<div><h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4><p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p></div></div>
           <Flame size={16} className="text-emerald-500" />
         </div>
-
         <div className="flex-1">
-          {top5Contents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div>
-          ) : (
+          {top5Contents.length === 0 ? <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div> : (
             <div className="space-y-4">
               {top5Contents.map((p) => (
                 <div key={p.id} className="flex flex-col group border-b border-gray-500/5 pb-2 last:border-0">
                   <div className={`text-[11px] font-bold truncate pr-4 mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{p.title}</div>
-                  <div className="flex justify-between items-center text-[9px] text-gray-500">
-                    <span>{p.publish_date}</span>
-                    <div className="flex gap-2">
-                      <span><Eye size={10} className="inline mr-1"/>{formatNumberMax(Number(platformKey === 'web' ? p.web_views : p.views || 0))}</span>
-                      <span className="font-black text-emerald-400"><MousePointer2 size={10} className="inline mr-1"/>{formatNumberMax(Number(p[engagementKey] || 0))}</span>
-                    </div>
-                  </div>
+                  <div className="flex justify-between items-center text-[9px] text-gray-500"><span>{p.publish_date}</span><div className="flex gap-2"><span><Eye size={10} className="inline mr-1"/>{formatNumberMax(Number(platformKey === 'web' ? p.web_views : p.views || 0))}</span><span className="font-black text-emerald-400"><MousePointer2 size={10} className="inline mr-1"/>{formatNumberMax(Number(p[engagementKey] || 0))}</span></div></div>
                 </div>
               ))}
             </div>
           )}
         </div>
-        
-        <button 
-          onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} 
-          className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}
-        >
-          Lihat Seluruh {title}
-        </button>
+        <button onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}>Lihat Seluruh {title}</button>
       </div>
     );
   };
@@ -247,20 +209,20 @@ export default function CommandCenter() {
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
-        {/* HEADER DIPERLEBAR DAN DIBERSIHKAN */}
-        <header className={`h-20 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
+        {/* REVISI: Header Diperlega (h-24), Gap Ikon Diperbesar (gap-6) */}
+        <header className={`h-24 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
           <div className="md:hidden"><Menu onClick={() => setMobileMenuOpen(true)} size={20} className="cursor-pointer" /></div>
           
-          {/* QUICK SPOTLIGHT (PENGGANTI SEARCH) */}
           <div ref={searchRef} className="relative hidden md:block w-80">
-            <div className={`flex items-center rounded-2xl px-4 py-2.5 border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 focus-within:border-[#008234]' : 'bg-gray-50 border-gray-200 focus-within:border-[#008234]'}`}>
+            {/* Search container lebih pipih (py-2) */}
+            <div className={`flex items-center rounded-2xl px-4 py-2 border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 focus-within:border-[#008234]' : 'bg-gray-50 border-gray-200 focus-within:border-[#008234]'}`}>
               <Search size={15} className="text-gray-400 mr-2.5" />
               <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setShowSearch(true);}} onFocus={() => setShowSearch(true)} placeholder="Quick Spotlight..." className={`bg-transparent text-xs outline-none w-full font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
             </div>
             
             {showSearch && searchQuery && (
               <div className={`absolute top-full mt-3 w-full rounded-2xl shadow-2xl border overflow-hidden z-50 animate-fadeIn ${isDarkMode ? 'bg-[#161920] border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="max-h-64 overflow-y-auto p-2">
+                <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
                   <div className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-gray-500 border-b border-gray-500/20 mb-1">Hasil Pencarian Cepat</div>
                   {allContents.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 5).map(c => (
                     <div key={c.id} onClick={() => setShowSearch(false)} className="p-3 rounded-xl cursor-pointer hover:bg-emerald-500/10 transition-colors mb-1">
@@ -279,9 +241,7 @@ export default function CommandCenter() {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            
-            {/* BAHASA DROPDOWN */}
+          <div className="flex items-center gap-6">
             <div ref={langRef} className="relative">
               <button onClick={() => setShowLangMenu(!showLangMenu)} className={`p-2.5 flex items-center gap-2 rounded-xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
                 <Languages size={15} /> <span className="text-[10px] font-black">{activeLang}</span>
@@ -298,7 +258,6 @@ export default function CommandCenter() {
               {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
-            {/* NOTIFIKASI PERSONAL (OUTSIDE CLICK) */}
             <div ref={notifRef} className="relative">
               <button onClick={() => setShowNotifications(!showNotifications)} className={`p-2.5 rounded-xl border relative transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
                 <Bell size={15} />
@@ -312,43 +271,24 @@ export default function CommandCenter() {
                     <Activity size={14} className="text-emerald-500" />
                   </div>
                   <div className="p-4 space-y-5 max-h-80 overflow-y-auto custom-scrollbar">
-                    
-                    {/* Antrean Siap Tayang */}
                     <div>
                       <div className="text-gray-500 text-[9px] font-black uppercase tracking-widest mb-2 border-b border-gray-500/20 pb-1">Antrean Tayang Terdekat</div>
-                      {statusCounts.ready.length === 0 ? (
-                        <div className="text-gray-600 text-[10px] font-bold">Semua naskah telah mengudara.</div>
-                      ) : statusCounts.ready.map(c => (
+                      {statusCounts.ready.length === 0 ? <div className="text-gray-600 text-[10px] font-bold">Semua naskah telah mengudara.</div> : statusCounts.ready.map(c => (
                         <div key={c.id} className={`mb-3 p-3 rounded-xl border ${isDarkMode ? 'bg-[#0b0d10] border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'}`}>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{c.title}</span>
-                          </div>
-                          <div className="text-[9px] font-black tracking-wide text-emerald-500 ml-4">
-                            ⚠️ Peringatan ke Ikhdam: Jangan lupa upload jam {c.publish_time || '12:00'} WIB!
-                          </div>
+                          <div className="flex items-center gap-2 mb-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div><span className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{c.title}</span></div>
+                          <div className="text-[9px] font-black tracking-wide text-emerald-500 ml-4">⚠️ Peringatan ke Ikhdam: Jangan lupa upload jam {c.publish_time || '12:00'} WIB!</div>
                         </div>
                       ))}
                     </div>
-
-                    {/* Sedang Editing */}
                     <div>
                       <div className="text-gray-500 text-[9px] font-black uppercase tracking-widest mb-2 border-b border-gray-500/20 pb-1">Masuk Dapur Visual</div>
-                      {statusCounts.editing.length === 0 ? (
-                        <div className="text-gray-600 text-[10px] font-bold">Tidak ada antrean desain.</div>
-                      ) : statusCounts.editing.map(c => (
+                      {statusCounts.editing.length === 0 ? <div className="text-gray-600 text-[10px] font-bold">Tidak ada antrean desain.</div> : statusCounts.editing.map(c => (
                         <div key={c.id} className={`mb-3 p-3 rounded-xl border ${isDarkMode ? 'bg-[#0b0d10] border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                            <span className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{c.title}</span>
-                          </div>
-                          <div className="text-[9px] font-black tracking-wide text-amber-500 ml-4">
-                            🎨 Semangat Desandi, ditunggu visualnya!
-                          </div>
+                          <div className="flex items-center gap-2 mb-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div><span className={`text-[11px] font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{c.title}</span></div>
+                          <div className="text-[9px] font-black tracking-wide text-amber-500 ml-4">🎨 Semangat Desandi, ditunggu visualnya!</div>
                         </div>
                       ))}
                     </div>
-
                   </div>
                 </div>
               )}
@@ -384,7 +324,6 @@ export default function CommandCenter() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* BAGIAN KIRI: LIVE CHART & MONTHLY GOALS */}
                 <div className="lg:col-span-2 space-y-6">
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
@@ -416,34 +355,39 @@ export default function CommandCenter() {
                   <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
                 </div>
 
-                {/* BAGIAN KANAN: TRACKER + DISTRIBUSI PILAR + RUNWAY */}
                 <div className="flex flex-col gap-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
                   </div>
                   
-                  {/* MODUL BARU: DISTRIBUSI KONTEN PILAR (MENGISI KEKOSONGAN) */}
-                  <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
+                  {/* REVISI: Distribusi Pilar Horizontal & Ramping */}
+                  <div className={`p-6 rounded-3xl border flex flex-col justify-center ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <h4 className={`text-xs font-black uppercase tracking-widest mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Distribusi Pilar</h4>
-                    <div className="h-44 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={pillarDistributionData} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
-                            {pillarDistributionData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#161920' : '#fff', border:'none', borderRadius:'10px', fontSize: '10px', fontWeight: 'bold' }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-2">
-                      {pillarDistributionData.map((d, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></div> {d.name}
-                        </div>
-                      ))}
+                    <div className="flex items-center h-28">
+                      <div className="w-1/2 h-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={pillarDistributionData} innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value">
+                              {pillarDistributionData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#161920' : '#fff', border:'none', borderRadius:'10px', fontSize: '10px', fontWeight: 'bold' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="w-1/2 flex flex-col gap-2">
+                        {pillarDistributionData.map((d, i) => (
+                          <div key={i} className="flex items-center justify-between text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }}></div> 
+                              <span className="truncate">{d.name}</span>
+                            </div>
+                            <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{d.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -477,7 +421,6 @@ export default function CommandCenter() {
                 </div>
               </div>
 
-              {/* TUKAR POSISI TIKTOK MENJADI PERTAMA (MENGGESER WEB) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="TikTok" icon={<BrandIcons.TikTok />} platformKey="tiktok" engagementKey="tiktok_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
