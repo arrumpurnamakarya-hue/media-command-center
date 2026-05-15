@@ -52,34 +52,57 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       const text = event.target?.result as string;
       if (!text) return;
 
-      const rows = text.split(/\r?\n/);
-      if (rows.length < 2) return;
+      // ==========================================
+      // MESIN PARSER: KEBAL PARAGRAF DI DALAM CSV
+      // ==========================================
+      const parsedRows: string[][] = [];
+      let currentRow: string[] = [];
+      let currentVal = '';
+      let insideQuote = false;
 
-      const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (insideQuote && nextChar === '"') {
+            currentVal += '"';
+            i++; 
+          } else {
+            insideQuote = !insideQuote;
+          }
+        } else if (char === ',' && !insideQuote) {
+          currentRow.push(currentVal.trim());
+          currentVal = '';
+        } else if ((char === '\n' || char === '\r') && !insideQuote) {
+          if (char === '\r' && nextChar === '\n') i++;
+          currentRow.push(currentVal.trim());
+          if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
+          currentRow = [];
+          currentVal = '';
+        } else {
+          currentVal += char;
+        }
+      }
+      
+      // Push baris terakhir jika ada
+      if (currentVal || currentRow.length > 0) {
+        currentRow.push(currentVal.trim());
+        if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
+      }
+
+      if (parsedRows.length < 2) {
+         setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'idle', file: null } }));
+         return;
+      }
+
+      // Mulai Pengolahan Data
+      const headers = parsedRows[0].map(h => h.replace(/"/g, '').trim().toLowerCase());
       const parsedData: PreviewItem[] = [];
 
-      for(let i = 1; i < rows.length; i++) {
-        const rowString = rows[i];
-        if(!rowString.trim()) continue;
+      for(let i = 1; i < parsedRows.length; i++) {
+        const rowValues = parsedRows[i];
 
-        const rowValues: string[] = [];
-        let insideQuote = false;
-        let currentVal = '';
-        
-        for(let j = 0; j < rowString.length; j++) {
-          const char = rowString[j];
-          if(char === '"') {
-            insideQuote = !insideQuote;
-          } else if(char === ',' && !insideQuote) {
-            rowValues.push(currentVal.trim());
-            currentVal = '';
-          } else {
-            currentVal += char;
-          }
-        }
-        rowValues.push(currentVal.trim());
-
-        // LOGIKA PENCOCOKAN KOLOM PRESISI (ANTI-SALAH BACA)
         const getVal = (colName: string) => {
           let idx = headers.findIndex(h => h === colName.toLowerCase());
           if (idx === -1) idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
@@ -88,7 +111,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           return rawVal.trim();
         };
 
-        // FILTER ANTI-NaN UNTUK SEMUA ANGKA
         const getNum = (colName: string) => {
           const val = getVal(colName).replace(/,/g, '').replace(/\./g, '').replace(/-/g, '').trim();
           const parsed = parseInt(val, 10);
@@ -118,7 +140,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           }
           
         } else {
-          // FACEBOOK & IG (Menggunakan getNum agar kebal simbol -- )
+          // Meta Platform (Facebook & Instagram)
           caption = getVal("deskripsi") || getVal("judul") || getVal("title") || "";
           views = getNum("tayangan") || getNum("jangkauan") || getNum("impresi");
           
@@ -133,10 +155,14 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           let rawDate = getVal("waktu penerbitan") || getVal("tanggal");
           if(rawDate && rawDate.includes('/')) {
              const parts = rawDate.split(' ')[0].split('/');
-             if(parts.length === 3) pDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+             if(parts.length === 3) {
+                const year = parts[2].substring(0, 4); // Ambil 4 digit tahun saja
+                pDate = `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+             }
           }
         }
 
+        // Tampilkan hanya jika ada isi caption & metriknya minimal 1
         if(caption && (views > 0 || engagement > 0)) {
           parsedData.push({
             title: caption.substring(0, 65) + (caption.length > 65 ? '...' : ''), 
@@ -184,7 +210,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         
         const engCol = columnMap[item.platform] || 'engagement';
         
-        // PAYLOAD DIJAMIN BERSIH DARI NaN
         const safeViews = isNaN(Number(item.views)) ? 0 : Number(item.views);
         const safeEngagement = isNaN(Number(item.engagement)) ? 0 : Number(item.engagement);
 
