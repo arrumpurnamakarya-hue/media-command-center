@@ -28,7 +28,7 @@ interface PreviewItem {
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
   const [previewData, setPreviewData] = useState<PreviewItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // State baru untuk menangkap error senyap
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [platformStatus, setPlatformStatus] = useState({
     web: { file: null as string | null, status: 'idle' },
@@ -51,7 +51,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       const text = event.target?.result as string;
       if (!text) return;
 
-      const rows = text.split('\n');
+      const rows = text.split(/\r?\n/);
       if (rows.length < 2) return;
 
       const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
@@ -79,25 +79,48 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         rowValues.push(currentVal.trim());
 
         const getVal = (colName: string) => {
-          const idx = headers.findIndex(h => h.includes(colName.toLowerCase()));
+          const idx = headers.findIndex(h => h === colName.toLowerCase());
           if(idx === -1) return "0";
-          return rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "0";
+          let rawVal = rowValues[idx] ? rowValues[idx].replace(/"/g, '') : "0";
+          return rawVal.replace(/,/g, '').replace(/\./g, '');
         };
 
-        const caption = getVal("Deskripsi") || getVal("Text") || getVal("Judul") || getVal("Title");
-        const views = parseInt(getVal("Tayangan") || getVal("Reach") || getVal("Impressions") || getVal("Views")) || 0;
-        
-        const likes = parseInt(getVal("Suka") || getVal("Likes")) || 0;
-        const comments = parseInt(getVal("Komentar") || getVal("Comments")) || 0;
-        const shares = parseInt(getVal("Frekuensi dibagikan") || getVal("Shares")) || 0;
-        const saves = parseInt(getVal("Frekuensi Disimpan") || getVal("Saves")) || 0;
-        const clicks = parseInt(getVal("Clicks") || getVal("Klik")) || 0;
-        
-        const engagement = likes + comments + shares + saves + clicks;
+        let caption = "";
+        let views = 0;
+        let engagement = 0;
 
-        if(caption && (views > 0 || engagement > 0)) {
+        // MESIN PEMBACA KHUSUS UNTUK MASING-MASING FORMAT
+        if (platformKey === 'web') {
+          // Format GSC (Pages.csv)
+          let rawUrl = getVal("top pages");
+          // Format URL agar enak dibaca (ubah slug menjadi teks)
+          caption = rawUrl.replace('https://pkbgarut.id/', '').replace(/-/g, ' ').replace(/\//g, '') || "Halaman Utama Website";
+          views = parseInt(getVal("impressions")) || 0;
+          engagement = parseInt(getVal("clicks")) || 0;
+          
+        } else if (platformKey === 'tiktok') {
+          // Format TikTok (Content.csv)
+          caption = getVal("video title");
+          views = parseInt(getVal("total views")) || 0;
+          let likes = parseInt(getVal("total likes")) || 0;
+          let comments = parseInt(getVal("total comments")) || 0;
+          let shares = parseInt(getVal("total shares")) || 0;
+          engagement = likes + comments + shares;
+          
+        } else {
+          // Format Meta/Instagram (Apr-21...csv)
+          caption = getVal("deskripsi");
+          views = parseInt(getVal("tayangan")) || parseInt(getVal("jangkauan")) || 0;
+          let likes = parseInt(getVal("suka")) || 0;
+          let comments = parseInt(getVal("komentar")) || 0;
+          let shares = parseInt(getVal("frekuensi dibagikan")) || 0;
+          let saves = parseInt(getVal("frekuensi disimpan")) || 0;
+          engagement = likes + comments + shares + saves;
+        }
+
+        if(caption && caption !== "0" && (views > 0 || engagement > 0)) {
           parsedData.push({
-            title: caption.substring(0, 60) + (caption.length > 60 ? '...' : ''), 
+            title: caption.substring(0, 65) + (caption.length > 65 ? '...' : ''), 
             full_caption: caption,
             platform: platformKey,
             views: views,
@@ -125,14 +148,11 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
 
   const handleBulkSave = async () => {
     if (previewData.length === 0) return;
-    
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
       for (const item of previewData) {
-        
-        // Pemetaan kolom dinamis agar langsung masuk ke kolom tabel 'contents' Anda
         const columnMap: Record<string, string> = {
           'web': 'web_engagement',
           'ig': 'ig_engagement',
@@ -155,11 +175,9 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           platforms: [item.platform.toUpperCase()]
         };
         
-        // Suntikkan angka ke spesifik platform
         payload[engCol] = item.engagement;
         if (item.platform === 'web') payload['web_views'] = item.views;
 
-        // Proses Injeksi Langsung ke tabel Contents
         const { error: contentError } = await supabase
           .from('contents')
           .insert([payload]);
@@ -167,7 +185,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         if (contentError) throw contentError;
       }
       
-      alert("✅ Sinkronisasi Massal Berhasil! Data CSV telah masuk ke sistem.");
+      alert("✅ Sinkronisasi Massal Berhasil! Data Historis telah masuk ke Reports.");
       if (onRecapSuccess) await onRecapSuccess();
       
       setPreviewData([]);
@@ -179,7 +197,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
 
     } catch (error: any) {
       console.error("Supabase Error:", error);
-      // Tangkap error dan tampilkan di layar agar kita tahu persis letak penolakan Database-nya
       setErrorMessage(error.message || "Gagal menyimpan ke database Supabase.");
     } finally {
       setIsSubmitting(false);
@@ -278,7 +295,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           </div>
         )}
 
-        {/* MONITOR ERROR: Akan muncul berwarna merah jika Supabase menolak data */}
         {errorMessage && (
           <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 animate-fadeIn">
             <AlertTriangle className="text-red-500 flex-shrink-0" size={18} />
@@ -294,11 +310,17 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           disabled={previewData.length === 0 || isSubmitting}
           className={`w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
             previewData.length === 0 || isSubmitting
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+              ? 'bg-[#12151a] border border-gray-800 text-gray-600 cursor-not-allowed' 
               : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 cursor-pointer active:scale-[0.98]'
           }`}
         >
-          {isSubmitting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save size={16} /> IMPOR MASSAL KE REPORTS</>}
+          {isSubmitting ? (
+             <><RefreshCw className="w-4 h-4 animate-spin" /> MENYIMPAN DATA...</>
+          ) : previewData.length === 0 ? (
+             <><AlertTriangle size={14} /> TOMBOL TERKUNCI (UNGGAH CSV DULU)</>
+          ) : (
+             <><Save size={16} /> IMPOR MASSAL KE REPORTS</>
+          )}
         </button>
 
       </div>
