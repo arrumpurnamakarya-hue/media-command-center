@@ -32,7 +32,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  // STATE BARU UNTUK PREMIUM TOAST NOTIFICATION
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   
   const [platformStatus, setPlatformStatus] = useState({
@@ -185,12 +184,17 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
 
       setPreviewData(prev => {
         const filtered = prev.filter(p => p.platform !== platformKey);
-        return [...filtered, ...parsedData];
+        const combined = [...filtered, ...parsedData];
+        
+        // PENGURUTAN OTOMATIS: Berdasarkan tanggal (terlama ke terbaru)
+        return combined.sort((a, b) => new Date(a.publish_date).getTime() - new Date(b.publish_date).getTime());
       });
 
       setPlatformStatus(prev => ({ ...prev, [platformKey]: { status: 'success', file: file.name } }));
     };
     
+    // Reset file input agar bisa upload file yang sama jika dihapus lalu diupload lagi
+    e.target.value = '';
     reader.readAsText(file);
   };
 
@@ -245,9 +249,8 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         if (contentError) throw contentError;
       }
       
-      // MENGGANTIKAN ALERT MURAHAN DENGAN PREMIUM TOAST
       setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 5000); // Otomatis hilang dalam 5 detik
+      setTimeout(() => setShowSuccessToast(false), 5000);
       
       if (onRecapSuccess) await onRecapSuccess();
       
@@ -279,9 +282,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
             {icon}
             <h4 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
           </div>
-          {platData.status === 'success' && (
-            <button onClick={() => handleRemoveFile(dataKey)} className="text-gray-500 hover:text-red-400 p-1 rounded transition-colors"><XIcon size={14}/></button>
-          )}
         </div>
 
         {platData.status === 'idle' ? (
@@ -299,7 +299,14 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           <div className="p-4 bg-black/20 rounded-xl border border-emerald-500/20 flex flex-col items-center text-center">
             <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
             <span className="text-[10px] text-emerald-400 font-bold truncate max-w-full px-2">{platData.file}</span>
-            <span className="text-[8px] text-gray-500 uppercase mt-1">Data Siap Disinkronkan</span>
+            
+            {/* TOMBOL HAPUS BARU: Lebih jelas, besar, dan spesifik */}
+            <button 
+              onClick={() => handleRemoveFile(dataKey)}
+              className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg transition-all text-[8px] font-black uppercase tracking-widest"
+            >
+              <X size={12} /> Hapus File
+            </button>
           </div>
         )}
       </div>
@@ -309,7 +316,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
       
-      {/* PREMIUM TOAST NOTIFICATION (MELAYANG) */}
       {showSuccessToast && (
         <div className="fixed bottom-10 right-10 z-[100] animate-fadeIn">
           <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border backdrop-blur-xl ${isDarkMode ? 'bg-[#12151a]/90 border-emerald-500/30' : 'bg-white/90 border-emerald-500/30'}`}>
@@ -408,8 +414,4 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       </div>
     </div>
   );
-}
-
-function XIcon(props: any) {
-  return <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>;
 }
