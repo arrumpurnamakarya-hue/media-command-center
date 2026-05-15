@@ -13,6 +13,7 @@ import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
 import Reports from './Reports';
 import PlanningForm from './PlanningForm';
+import Jobdesk from './Jobdesk';
 
 const BrandIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -395,7 +396,7 @@ export default function CommandCenter() {
             <div className={`p-12 text-center rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}`}>
               <CheckSquare size={48} className="mx-auto mb-4 text-[#008234] opacity-50" />
               <h2 className="text-xl font-black uppercase tracking-widest mb-2">Papan Jobdesk Redaksi</h2>
-              <p className="text-xs font-bold">Katalog Instruksi dipindahkan ke sini. Modul sedang dalam tahap perakitan.</p>
+              <p className="text-xs font-bold">{activeTab === 'jobdesk' && <Jobdesk isDarkMode={isDarkMode} />}.</p>
             </div>
           )}
 
