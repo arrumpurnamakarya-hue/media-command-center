@@ -24,6 +24,7 @@ interface PreviewItem {
   views: number;
   engagement: number;
   publish_date: string;
+  publish_time: string; // PENAMBAHAN KUNCI: JAM TAYANG
 }
 
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
@@ -52,9 +53,9 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
       const text = event.target?.result as string;
       if (!text) return;
 
-      // ==========================================
-      // MESIN PARSER: KEBAL PARAGRAF DI DALAM CSV
-      // ==========================================
+      const rows = text.split(/\r?\n/);
+      if (rows.length < 2) return;
+
       const parsedRows: string[][] = [];
       let currentRow: string[] = [];
       let currentVal = '';
@@ -85,7 +86,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         }
       }
       
-      // Push baris terakhir jika ada
       if (currentVal || currentRow.length > 0) {
         currentRow.push(currentVal.trim());
         if (currentRow.some(val => val !== '')) parsedRows.push(currentRow);
@@ -96,7 +96,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
          return;
       }
 
-      // Mulai Pengolahan Data
       const headers = parsedRows[0].map(h => h.replace(/"/g, '').trim().toLowerCase());
       const parsedData: PreviewItem[] = [];
 
@@ -121,6 +120,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         let views = 0;
         let engagement = 0;
         let pDate = new Date().toISOString().split('T')[0];
+        let pTime = "12:00"; // Default jam
 
         if (platformKey === 'web') {
           let rawUrl = getVal("top pages");
@@ -140,7 +140,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           }
           
         } else {
-          // Meta Platform (Facebook & Instagram)
           caption = getVal("deskripsi") || getVal("judul") || getVal("title") || "";
           views = getNum("tayangan") || getNum("jangkauan") || getNum("impresi");
           
@@ -153,16 +152,25 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           engagement = interaksi > 0 ? interaksi : (likes + comments + shares + saves);
 
           let rawDate = getVal("waktu penerbitan") || getVal("tanggal");
-          if(rawDate && rawDate.includes('/')) {
-             const parts = rawDate.split(' ')[0].split('/');
-             if(parts.length === 3) {
-                const year = parts[2].substring(0, 4); // Ambil 4 digit tahun saja
-                pDate = `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+          if(rawDate) {
+             const dateTimeParts = rawDate.split(' ');
+             const datePart = dateTimeParts[0];
+             
+             if(datePart.includes('/')) {
+                const parts = datePart.split('/');
+                if(parts.length === 3) {
+                   const year = parts[2].substring(0, 4);
+                   pDate = `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+             }
+
+             // Ekstrak Jam (Contoh: "03:42")
+             if (dateTimeParts.length > 1) {
+                pTime = dateTimeParts[1].substring(0, 5);
              }
           }
         }
 
-        // Tampilkan hanya jika ada isi caption & metriknya minimal 1
         if(caption && (views > 0 || engagement > 0)) {
           parsedData.push({
             title: caption.substring(0, 65) + (caption.length > 65 ? '...' : ''), 
@@ -170,7 +178,8 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
             platform: platformKey,
             views: views,
             engagement: engagement,
-            publish_date: pDate
+            publish_date: pDate,
+            publish_time: pTime // Masukkan jam ke array
           });
         }
       }
@@ -213,6 +222,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         const safeViews = isNaN(Number(item.views)) ? 0 : Number(item.views);
         const safeEngagement = isNaN(Number(item.engagement)) ? 0 : Number(item.engagement);
 
+        // PAYLOAD SEMPURNA: Menyertakan `publish_time` agar Supabase tidak menolak
         const payload: Record<string, any> = {
           title: item.title || "Konten Impor",
           caption: item.full_caption || "",
@@ -220,6 +230,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           prod_status: 'Completed',
           pillar: 'Imported Data',
           publish_date: item.publish_date || new Date().toISOString().split('T')[0],
+          publish_time: item.publish_time || "12:00", // INI SOLUSI DARI ERROR NYA
           views: safeViews,
           engagement: safeEngagement,
           platforms: [item.platform.toUpperCase()]
@@ -324,7 +335,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
               <table className="w-full text-left">
                 <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-[#0b0d10]' : 'bg-gray-50'}`}>
                   <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-500/20 pb-2">
-                    <th className="pb-3 px-4 font-black">Tanggal</th>
+                    <th className="pb-3 px-4 font-black">Waktu</th>
                     <th className="pb-3 px-4 font-black">Teks / Caption</th>
                     <th className="pb-3 px-4 font-black text-right">Tayangan (Reach)</th>
                     <th className="pb-3 px-4 font-black text-right">Total Interaksi</th>
@@ -333,7 +344,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
                 <tbody className="text-[11px] font-bold divide-y divide-gray-500/10">
                   {previewData.map((d, i) => (
                     <tr key={i} className="hover:bg-white/5 transition-colors">
-                      <td className="py-4 px-4 font-mono text-gray-500">{d.publish_date}</td>
+                      <td className="py-4 px-4 font-mono text-gray-500 whitespace-nowrap">{d.publish_date}<br/><span className="text-[9px]">{d.publish_time}</span></td>
                       <td className={`py-4 px-4 max-w-[300px] leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{d.title}</td>
                       <td className="py-4 px-4 text-right text-blue-400 font-roboto text-sm">{d.views.toLocaleString('id-ID')}</td>
                       <td className="py-4 px-4 text-right text-emerald-400 font-roboto text-sm">{d.engagement.toLocaleString('id-ID')}</td>
