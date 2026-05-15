@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  CalendarDays, Plus, Edit2, Trash2, X, Clock, MapPin, 
-  CheckCircle2, AlertTriangle, FileText, Type, Tag, Activity
+  CalendarDays, Plus, Edit2, Trash2, X, Clock,
+  ChevronLeft, ChevronRight, FileText, Tag
 } from 'lucide-react';
 
 interface ContentPlan {
@@ -26,13 +26,17 @@ interface PlanningFormProps {
 const PILLARS = ['Strategic', 'Educational', 'Entertaining', 'Promotional', 'Commemorative Day'];
 const STATUSES = ['Ideation', 'Drafting', 'Editing/Design', 'Ready to Post'];
 const PLATFORMS_LIST = ['IG', 'FB', 'TIKTOK', 'X', 'YT', 'WEB'];
+const DAYS_OF_WEEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
 export default function PlanningForm({ isDarkMode = true, onPlanAdded }: PlanningFormProps) {
   const [contents, setContents] = useState<ContentPlan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // State untuk Form
+  // STATE KALENDER
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // State Formulir
   const [formData, setFormData] = useState<Partial<ContentPlan>>({
     title: '', pillar: 'Strategic', publish_date: '', publish_time: '12:00',
     prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
@@ -43,20 +47,49 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
       .from('contents')
       .select('*')
       .neq('pillar', 'Imported Data') // Sembunyikan data CSV dari kalender
-      .order('publish_date', { ascending: true })
-      .order('publish_time', { ascending: true });
+      .order('publish_time', { ascending: true }); // Urutkan jam dalam satu hari
     
     if (data) setContents(data);
   };
 
   useEffect(() => { fetchPlans(); }, []);
 
-  const handleOpenModal = (item?: ContentPlan) => {
+  // LOGIKA NAVIGASI KALENDER
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  // LOGIKA RENDER GRID KALENDER
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Minggu, 6 = Sabtu
+
+  const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const totalSlots = [...blanks, ...days];
+  
+  // Memastikan grid genap (kelipatan 7) agar baris terakhir tidak menggantung
+  const tailBlanksCount = Math.ceil(totalSlots.length / 7) * 7 - totalSlots.length;
+  const tailBlanks = Array.from({ length: tailBlanksCount }, (_, i) => null);
+  const calendarCells = [...totalSlots, ...tailBlanks];
+
+  // Map Data ke Tanggal
+  const groupedContents = contents.reduce((acc, curr) => {
+    if (!curr.publish_date) return acc;
+    if (!acc[curr.publish_date]) acc[curr.publish_date] = [];
+    acc[curr.publish_date].push(curr);
+    return acc;
+  }, {} as Record<string, ContentPlan[]>);
+
+  // LOGIKA MODAL FORMULIR
+  const handleOpenModal = (item?: ContentPlan, dateStr?: string) => {
     if (item) {
       setFormData(item);
     } else {
       setFormData({
-        title: '', pillar: 'Strategic', publish_date: new Date().toISOString().split('T')[0], 
+        title: '', pillar: 'Strategic', 
+        publish_date: dateStr || new Date().toISOString().split('T')[0], 
         publish_time: '12:00', prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
       });
     }
@@ -83,17 +116,13 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
 
     try {
       const payload = { ...formData, pub_status: 'Scheduled' };
-      
       if (formData.id) {
-        // Edit Mode
         const { error } = await supabase.from('contents').update(payload).eq('id', formData.id);
         if (error) throw error;
       } else {
-        // Insert Mode
         const { error } = await supabase.from('contents').insert([payload]);
         if (error) throw error;
       }
-
       await fetchPlans();
       if (onPlanAdded) onPlanAdded();
       handleCloseModal();
@@ -110,100 +139,122 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
       await supabase.from('contents').delete().eq('id', id);
       await fetchPlans();
       if (onPlanAdded) onPlanAdded();
+      handleCloseModal(); // Tutup modal jika dihapus dari dalam modal
     } catch (error: any) {
       alert("Error deleting data: " + error.message);
     }
   };
 
-  // Mengelompokkan konten berdasarkan Tanggal untuk UI Kalender
-  const groupedContents = contents.reduce((acc, curr) => {
-    const date = curr.publish_date || 'TBA';
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(curr);
-    return acc;
-  }, {} as Record<string, ContentPlan[]>);
-
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn relative">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn relative">
       
       {/* HEADER KALENDER */}
-      <div className={`p-8 rounded-[35px] border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div>
-          <h2 className={`text-2xl font-black uppercase tracking-tight flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            <CalendarDays className="text-[#008234]" /> Content Calendar
-          </h2>
-          <p className="text-xs text-gray-500 mt-2 font-bold tracking-widest uppercase">Agenda Publikasi & Status Produksi Redaksi</p>
+      <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+        <div className="flex items-center gap-6">
+          <div>
+            <h2 className={`text-2xl font-black uppercase tracking-tight flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <CalendarDays className="text-[#008234]" /> Content Calendar
+            </h2>
+            <p className="text-[10px] text-gray-500 mt-1 font-bold tracking-widest uppercase">Grid Perencanaan Redaksi</p>
+          </div>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-6 py-3 bg-[#008234] hover:bg-green-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 active:scale-95"
-        >
-          <Plus size={16} /> Tambah Naskah
-        </button>
+
+        {/* KONTROL BULAN */}
+        <div className="flex items-center gap-4">
+          <button onClick={goToToday} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:text-white hover:border-gray-600' : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'}`}>
+            Hari Ini
+          </button>
+          <div className={`flex items-center rounded-xl border p-1 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-100 border-gray-200'}`}>
+            <button onClick={prevMonth} className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-gray-800 text-gray-400 hover:text-white' : 'hover:bg-white text-gray-600'}`}><ChevronLeft size={16}/></button>
+            <span className={`w-32 text-center text-xs font-black uppercase tracking-widest font-roboto ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+            </span>
+            <button onClick={nextMonth} className={`p-2 rounded-lg transition-all ${isDarkMode ? 'hover:bg-gray-800 text-gray-400 hover:text-white' : 'hover:bg-white text-gray-600'}`}><ChevronRight size={16}/></button>
+          </div>
+          <button onClick={() => handleOpenModal()} className="p-3 bg-[#008234] hover:bg-green-700 text-white rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-95">
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* AGENDA VIEW (DAFTAR KONTEN) */}
-      <div className="space-y-6">
-        {Object.keys(groupedContents).length === 0 ? (
-          <div className={`p-12 text-center rounded-[35px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
-            <FileText size={48} className="mx-auto text-gray-600 opacity-20 mb-4" />
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Belum ada agenda konten yang direncanakan.</p>
-          </div>
-        ) : (
-          Object.keys(groupedContents).map((date) => (
-            <div key={date} className={`p-6 md:p-8 rounded-[35px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'} shadow-sm`}>
-              
-              {/* Separator Tanggal */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className={`px-4 py-2 rounded-xl text-xs font-black tracking-widest font-roboto ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                  {new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-                <div className="flex-1 h-px bg-gray-500/20"></div>
-              </div>
-
-              {/* List Konten di Tanggal Tersebut */}
-              <div className="space-y-4">
-                {groupedContents[date].map((item) => (
-                  <div key={item.id} className={`p-5 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 hover:border-gray-700' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] font-black px-2 py-1 rounded bg-gray-500/10 text-gray-400 font-roboto flex items-center gap-1">
-                          <Clock size={10} /> {item.publish_time}
-                        </span>
-                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${
-                          item.prod_status === 'Ready to Post' ? 'bg-[#008234]/10 text-[#008234]' : 
-                          item.prod_status === 'Editing/Design' ? 'bg-amber-500/10 text-amber-500' : 
-                          'bg-blue-500/10 text-blue-500'
-                        }`}>
-                          {item.prod_status}
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1 border border-gray-500/20 px-2 py-1 rounded">
-                           <Tag size={10}/> {item.pillar}
-                        </span>
-                      </div>
-                      <h3 className={`text-sm font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.title}</h3>
-                      <div className="flex items-center gap-1.5">
-                        {item.platforms?.map(p => (
-                           <span key={p} className="text-[8px] font-black bg-gray-500/20 text-gray-400 px-1.5 py-0.5 rounded">{p}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity w-full md:w-auto justify-end mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-0 border-gray-500/20">
-                      <button onClick={() => handleOpenModal(item)} className="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(item.id, item.title)} className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* GRID KALENDER ALA GOOGLE CALENDAR */}
+      <div className={`rounded-[30px] border overflow-hidden shadow-sm ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+        
+        {/* NAMA HARI */}
+        <div className="grid grid-cols-7 border-b border-gray-500/20">
+          {DAYS_OF_WEEK.map((day, idx) => (
+            <div key={day} className={`p-3 text-center text-[10px] font-black uppercase tracking-widest ${idx === 0 || idx === 6 ? 'text-rose-500' : isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+              {day}
             </div>
-          ))
-        )}
+          ))}
+        </div>
+
+        {/* KOTAK-KOTAK TANGGAL */}
+        <div className={`grid grid-cols-7 bg-gray-500/10 gap-[1px] ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+          {calendarCells.map((day, idx) => {
+            if (day === null) {
+              return <div key={`blank-${idx}`} className={`min-h-[120px] ${isDarkMode ? 'bg-[#161920]' : 'bg-gray-50'} opacity-50`}></div>;
+            }
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayContents = groupedContents[dateStr] || [];
+            
+            // Cek apakah ini hari ini
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isToday = dateStr === todayStr;
+
+            return (
+              <div 
+                key={`day-${day}`} 
+                onClick={() => handleOpenModal(undefined, dateStr)} // Klik kotak kosong = tambah naskah di hari itu
+                className={`min-h-[120px] p-2 flex flex-col gap-1.5 transition-colors cursor-pointer group ${isDarkMode ? 'bg-[#0b0d10] hover:bg-[#161920]' : 'bg-white hover:bg-gray-50'}`}
+              >
+                {/* Angka Tanggal */}
+                <div className="flex justify-end mb-1">
+                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-black font-roboto ${
+                    isToday ? 'bg-[#008234] text-white shadow-md shadow-green-900/50' : 
+                    isDarkMode ? 'text-gray-500 group-hover:text-white transition-colors' : 'text-gray-600'
+                  }`}>
+                    {day}
+                  </span>
+                </div>
+
+                {/* List Naskah (Pills) */}
+                <div className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar">
+                  {dayContents.map((item) => {
+                    // Warna berdasarkan status
+                    const isReady = item.prod_status === 'Ready to Post';
+                    const isEdit = item.prod_status === 'Editing/Design';
+                    
+                    const bgClass = isReady ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30' : 
+                                    isEdit  ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30' : 
+                                              'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30';
+                    const textClass = isReady ? 'text-emerald-500' : isEdit ? 'text-amber-500' : 'text-blue-500';
+
+                    return (
+                      <div 
+                        key={item.id}
+                        onClick={(e) => { e.stopPropagation(); handleOpenModal(item); }} // Klik pill = Edit naskah
+                        className={`p-1.5 rounded-lg border flex flex-col gap-1 transition-all active:scale-95 ${bgClass}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[8px] font-black font-roboto ${textClass}`}>{item.publish_time}</span>
+                          <span className={`text-[7px] font-black px-1 rounded uppercase tracking-tighter ${isReady ? 'bg-emerald-500/20 text-emerald-400' : isEdit ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                            {item.platforms?.length || 0} Plat
+                          </span>
+                        </div>
+                        <div className={`text-[9px] font-bold leading-tight line-clamp-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                          {item.title}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* MODAL POP-UP FORM */}
@@ -213,24 +264,27 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
             
             <div className="p-6 md:p-8 flex justify-between items-center border-b border-gray-500/10">
               <div>
-                <h3 className={`text-xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {formData.id ? 'Edit Naskah' : 'Tambah Naskah Baru'}
+                <h3 className={`text-xl font-black uppercase tracking-tight flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {formData.id ? <><Edit2 className="text-blue-500"/> Edit Naskah</> : <><Plus className="text-[#008234]"/> Tambah Naskah</>}
                 </h3>
                 <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">Formulir Perencanaan Redaksi</p>
               </div>
-              <button onClick={handleCloseModal} className="p-2 rounded-full bg-gray-500/10 text-gray-400 hover:text-white transition-all"><X size={20}/></button>
+              <div className="flex items-center gap-2">
+                {formData.id && (
+                  <button type="button" onClick={() => handleDelete(formData.id!, formData.title || '')} className="p-2 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"><Trash2 size={20}/></button>
+                )}
+                <button onClick={handleCloseModal} className="p-2 rounded-full bg-gray-500/10 text-gray-400 hover:text-white transition-all"><X size={20}/></button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
               <form id="planningForm" onSubmit={handleSave} className="space-y-6">
                 
-                {/* Judul */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Judul / Tema Konten</label>
                   <input type="text" required value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Contoh: Liputan Kunjungan SMAN 8..." className={`w-full p-4 rounded-xl border font-bold text-sm focus:outline-none focus:border-[#008234] transition-colors ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white placeholder-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
                 </div>
 
-                {/* Tanggal & Waktu (Menggunakan font-roboto untuk angka) */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Tanggal Tayang</label>
@@ -242,7 +296,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
                   </div>
                 </div>
 
-                {/* Pillar & Status */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Content Pillar</label>
@@ -258,7 +311,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
                   </div>
                 </div>
 
-                {/* Platforms (Multi-Select Pills) */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 block">Distribusi Platform</label>
                   <div className="flex flex-wrap gap-2">
@@ -273,7 +325,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
                   </div>
                 </div>
 
-                {/* Naskah & Copywriting */}
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Draft Caption / Naskah</label>
                   <textarea rows={4} value={formData.caption || ''} onChange={e => setFormData({...formData, caption: e.target.value})} placeholder="Tuliskan draf teks untuk postingan..." className={`w-full p-4 rounded-xl border font-medium text-sm leading-relaxed focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300 placeholder-gray-700' : 'bg-gray-50 border-gray-200 text-gray-900'}`}></textarea>
@@ -289,13 +340,20 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
 
             <div className="p-6 md:p-8 border-t border-gray-500/10">
               <button type="submit" form="planningForm" disabled={isSubmitting} className="w-full py-4 rounded-xl bg-[#008234] hover:bg-green-700 text-white font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 disabled:opacity-50">
-                {isSubmitting ? 'Menyimpan...' : 'Simpan ke Kalender'}
+                {isSubmitting ? 'Menyimpan...' : formData.id ? 'Simpan Perubahan' : 'Masukkan ke Kalender'}
               </button>
             </div>
             
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: #4B5563; }
+      `}</style>
     </div>
   );
 }
