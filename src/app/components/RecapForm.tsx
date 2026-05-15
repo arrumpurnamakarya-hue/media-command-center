@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe, AlertTriangle } from 'lucide-react';
+import { UploadCloud, CheckCircle2, Save, RefreshCw, Globe, AlertTriangle, X } from 'lucide-react';
 
 const PlatformIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -24,13 +24,16 @@ interface PreviewItem {
   views: number;
   engagement: number;
   publish_date: string;
-  publish_time: string; // PENAMBAHAN KUNCI: JAM TAYANG
+  publish_time: string;
 }
 
 export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFormProps) {
   const [previewData, setPreviewData] = useState<PreviewItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // STATE BARU UNTUK PREMIUM TOAST NOTIFICATION
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   
   const [platformStatus, setPlatformStatus] = useState({
     web: { file: null as string | null, status: 'idle' },
@@ -52,9 +55,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
     reader.onload = (event) => {
       const text = event.target?.result as string;
       if (!text) return;
-
-      const rows = text.split(/\r?\n/);
-      if (rows.length < 2) return;
 
       const parsedRows: string[][] = [];
       let currentRow: string[] = [];
@@ -120,7 +120,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         let views = 0;
         let engagement = 0;
         let pDate = new Date().toISOString().split('T')[0];
-        let pTime = "12:00"; // Default jam
+        let pTime = "12:00";
 
         if (platformKey === 'web') {
           let rawUrl = getVal("top pages");
@@ -164,7 +164,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
                 }
              }
 
-             // Ekstrak Jam (Contoh: "03:42")
              if (dateTimeParts.length > 1) {
                 pTime = dateTimeParts[1].substring(0, 5);
              }
@@ -179,7 +178,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
             views: views,
             engagement: engagement,
             publish_date: pDate,
-            publish_time: pTime // Masukkan jam ke array
+            publish_time: pTime
           });
         }
       }
@@ -205,6 +204,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
     if (previewData.length === 0) return;
     setIsSubmitting(true);
     setErrorMessage(null);
+    setShowSuccessToast(false);
 
     try {
       for (const item of previewData) {
@@ -222,7 +222,6 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         const safeViews = isNaN(Number(item.views)) ? 0 : Number(item.views);
         const safeEngagement = isNaN(Number(item.engagement)) ? 0 : Number(item.engagement);
 
-        // PAYLOAD SEMPURNA: Menyertakan `publish_time` agar Supabase tidak menolak
         const payload: Record<string, any> = {
           title: item.title || "Konten Impor",
           caption: item.full_caption || "",
@@ -230,7 +229,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
           prod_status: 'Completed',
           pillar: 'Imported Data',
           publish_date: item.publish_date || new Date().toISOString().split('T')[0],
-          publish_time: item.publish_time || "12:00", // INI SOLUSI DARI ERROR NYA
+          publish_time: item.publish_time || "12:00",
           views: safeViews,
           engagement: safeEngagement,
           platforms: [item.platform.toUpperCase()]
@@ -246,7 +245,10 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         if (contentError) throw contentError;
       }
       
-      alert("✅ Sinkronisasi Massal Berhasil! Data Historis telah masuk ke Reports.");
+      // MENGGANTIKAN ALERT MURAHAN DENGAN PREMIUM TOAST
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 5000); // Otomatis hilang dalam 5 detik
+      
       if (onRecapSuccess) await onRecapSuccess();
       
       setPreviewData([]);
@@ -305,7 +307,26 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 relative">
+      
+      {/* PREMIUM TOAST NOTIFICATION (MELAYANG) */}
+      {showSuccessToast && (
+        <div className="fixed bottom-10 right-10 z-[100] animate-fadeIn">
+          <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border backdrop-blur-xl ${isDarkMode ? 'bg-[#12151a]/90 border-emerald-500/30' : 'bg-white/90 border-emerald-500/30'}`}>
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Sinkronisasi Berhasil</h4>
+              <p className="text-[10px] font-bold text-gray-500 mt-1">Data historis telah masuk ke database Reports.</p>
+            </div>
+            <button onClick={() => setShowSuccessToast(false)} className="ml-4 p-2 bg-gray-500/10 rounded-full hover:bg-gray-500/20 text-gray-400 hover:text-white transition-all">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={`${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'} border p-8 md:p-10 rounded-[35px] shadow-2xl`}>
         
         <div className="text-center mb-10">
@@ -335,7 +356,7 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
               <table className="w-full text-left">
                 <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-[#0b0d10]' : 'bg-gray-50'}`}>
                   <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-500/20 pb-2">
-                    <th className="pb-3 px-4 font-black">Waktu</th>
+                    <th className="pb-3 px-4 font-black">Tanggal</th>
                     <th className="pb-3 px-4 font-black">Teks / Caption</th>
                     <th className="pb-3 px-4 font-black text-right">Tayangan (Reach)</th>
                     <th className="pb-3 px-4 font-black text-right">Total Interaksi</th>
