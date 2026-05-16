@@ -24,7 +24,7 @@ interface PlanningFormProps {
   onPlanAdded?: () => void;
 }
 
-const PILLARS = ['Strategic', 'Educational', 'Entertaining', 'Promotional', 'Commemorative Day'];
+const PILLARS = ['Informative', 'Educational', 'Entertaining', 'Promotional', 'Commemorative Day'];
 // REVISI STATUS: Menambahkan 'Posted' ke dalam opsi status produksi
 const STATUSES = ['Ideation', 'Drafting', 'Editing/Design', 'Ready to Post', 'Posted'];
 const PLATFORMS_LIST = ['IG', 'FB', 'TIKTOK', 'X', 'YT', 'WEB'];

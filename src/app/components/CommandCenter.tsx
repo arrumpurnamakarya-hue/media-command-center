@@ -158,9 +158,9 @@ export default function CommandCenter() {
     };
 
     return [
-      { label: 'TikTok Traksi', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement') },
-      { label: 'Instagram Traksi', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement') },
-      { label: 'Facebook Traksi', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement') }
+      { label: 'TikTok', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement') },
+      { label: 'Instagram', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement') },
+      { label: 'Facebook', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement') }
     ];
   }, [allContents]);
 
@@ -181,9 +181,27 @@ export default function CommandCenter() {
     return (
       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
         <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
-          <div className="flex items-center gap-3">{icon}<div><h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4><p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p></div></div>
-          <Flame size={16} className="text-emerald-500" />
+          <div className="flex items-center gap-3">
+            {icon}
+            <div>
+              <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
+              <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
+            </div>
+          </div>
+          
+          {/* REVISI: Tombol Upload Ulang / Edit Laporan */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setActiveTab('recap')} 
+              className={`p-1.5 rounded-lg border transition-all group relative ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-400 hover:text-white hover:border-emerald-500/50' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-emerald-500'}`} 
+              title="Upload Ulang / Edit Laporan CSV"
+            >
+              <UploadCloud size={14} />
+            </button>
+            <Flame size={16} className="text-emerald-500" />
+          </div>
         </div>
+
         <div className="flex-1">
           {top5Contents.length === 0 ? <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div> : (
             <div className="space-y-4">
@@ -196,7 +214,7 @@ export default function CommandCenter() {
             </div>
           )}
         </div>
-        <button onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}>Lihat Seluruh {title}</button>
+        <button onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}>Lihat Seluruh {title}</button>
       </div>
     );
   };
@@ -312,6 +330,11 @@ export default function CommandCenter() {
             <div className={`flex items-center space-x-3 pl-2 py-1 pr-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
               <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">A</div>
               <span className={`text-xs font-bold hidden sm:block pr-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Admin</span>
+              
+              {/* REVISI: Tombol Logout Dikembalikan */}
+              <button onClick={signOut} className={`ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
+                <LogOut size={14} />
+              </button>
             </div>
           </div>
         </header>
@@ -339,10 +362,8 @@ export default function CommandCenter() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* BAGIAN KIRI: LIVE CHART & 6 KARTU (MONTHLY GOALS + PLATFORM MOMENTUM) */}
                 <div className="lg:col-span-2 space-y-6">
                   
-                  {/* GRAFIK 30 HARI */}
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
                       <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tren Interaksi (30 Hari)</h4>
@@ -370,36 +391,37 @@ export default function CommandCenter() {
                     </div>
                   </div>
 
-                  {/* KUMPULAN 6 KARTU (2 JAJAR): MONTHLY GOALS & PLATFORM MOMENTUM */}
                   <div className="space-y-6">
-                    {/* Baris 1: 3 Kartu Monthly Goals */}
                     <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
                     
-                    {/* Baris 2: 3 Kartu Platform Momentum */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {momentumStats.map((m, i) => (
-                        <div key={i} className={`p-6 rounded-[25px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60 hover:border-gray-700' : 'bg-white border-gray-200 hover:border-gray-300'} shadow-sm relative overflow-hidden transition-all group`}>
-                          <div className="flex justify-between items-center mb-4">
-                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                              {m.icon} {m.label}
+                    {/* REVISI: 1 KARTU GABUNGAN UNTUK TRAKSI (MENGHEMAT RUANG) */}
+                    <div className={`p-6 rounded-[25px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden`}>
+                      <div className="flex items-center justify-between mb-6 border-b border-gray-500/10 pb-4">
+                        <div>
+                          <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Traksi Pertumbuhan Lini</h4>
+                          <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Momentum Platform Bulan Ini</p>
+                        </div>
+                        <Activity size={16} className="text-emerald-500" />
+                      </div>
+                      <div className="grid grid-cols-3 divide-x divide-gray-500/20">
+                        {momentumStats.map((m, i) => (
+                          <div key={i} className="px-2 md:px-4 first:pl-0 last:pr-0 flex flex-col items-center text-center">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                              {m.icon} <span className="hidden md:inline">{m.label.replace(' Traksi', '')}</span>
                             </div>
-                            <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-md ${m.perc >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                              {m.perc >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                            <div className={`font-roboto text-xl md:text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(m.curr)}</div>
+                            <div className={`mt-2 flex items-center justify-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md ${m.perc >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                              {m.perc >= 0 ? <TrendingUp size={10}/> : <TrendingDown size={10}/>}
                               {Math.abs(m.perc)}%
                             </div>
                           </div>
-                          <div>
-                            <div className={`font-roboto text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(m.curr)}</div>
-                            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest block mt-1">Interaksi Bln Ini</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                 </div>
 
-                {/* BAGIAN KANAN: TRACKER & UPCOMING RUNWAY */}
                 <div className="flex flex-col gap-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -436,7 +458,6 @@ export default function CommandCenter() {
                 </div>
               </div>
 
-              {/* TUKAR POSISI TIKTOK MENJADI PERTAMA (MENGGESER WEB) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="TikTok" icon={<BrandIcons.TikTok />} platformKey="tiktok" engagementKey="tiktok_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
