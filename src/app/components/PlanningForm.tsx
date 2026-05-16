@@ -25,7 +25,6 @@ interface PlanningFormProps {
 }
 
 const PILLARS = ['Informative', 'Educational', 'Entertaining', 'Promotional', 'Commemorative Day'];
-// REVISI STATUS: Menambahkan 'Posted' ke dalam opsi status produksi
 const STATUSES = ['Ideation', 'Drafting', 'Editing/Design', 'Ready to Post', 'Posted'];
 const PLATFORMS_LIST = ['IG', 'FB', 'TIKTOK', 'X', 'YT', 'WEB'];
 const DAYS_OF_WEEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
@@ -33,16 +32,15 @@ const DAYS_OF_WEEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 export default function PlanningForm({ isDarkMode = true, onPlanAdded }: PlanningFormProps) {
   const [contents, setContents] = useState<ContentPlan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view'); // REVISI: Mode pop-up (baca vs edit)
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view'); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Feedback copy naskah
   const [copiedCap, setCopiedCap] = useState(false);
   const [copiedCopy, setCopiedCopy] = useState(false);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [formData, setFormData] = useState<Partial<ContentPlan>>({
-    title: '', pillar: 'Strategic', publish_date: '', publish_time: '12:00',
+    title: '', pillar: 'Informative', publish_date: '', publish_time: '12:00',
     prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
   });
 
@@ -81,18 +79,17 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
     return acc;
   }, {} as Record<string, ContentPlan[]>);
 
-  // REVISI: Membuka Pop-up dengan Mode yang Sesuai
   const handleOpenModal = (item?: ContentPlan, dateStr?: string) => {
     if (item) {
       setFormData(item);
-      setModalMode('view'); // Konten lama otomatis masuk ke mode Pop-up Ringkasan untuk Copas
+      setModalMode('view'); 
     } else {
       setFormData({
-        title: '', pillar: 'Strategic', 
+        title: '', pillar: 'Informative', 
         publish_date: dateStr || new Date().toISOString().split('T')[0], 
         publish_time: '12:00', prod_status: 'Ideation', platforms: [], copywriting: '', caption: ''
       });
-      setModalMode('edit'); // Konten baru langsung masuk mode pengisian formulir
+      setModalMode('edit'); 
     }
     setIsModalOpen(true);
   };
@@ -112,7 +109,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
     });
   };
 
-  // REVISI PINtAR: Auto-Caption generator dengan Custom Footer PKB Garut
   const generateAutoCaption = () => {
     if (!formData.title) {
       alert("Silakan isi Judul / Tema Konten terlebih dahulu!");
@@ -126,8 +122,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
     ];
 
     const randomParagraph = templates[Math.floor(Math.random() * templates.length)];
-    
-    // Blok Custom Footer Wajib di Ujung Kanan/Bawah
     const customFooter = `\n\nBaca selengkapnya di: www.pkbgarut.id\n\nPeduli Ummat Melayani Rakyat 🇮🇩\n\n@dpp_pkb @cakiminow @dpwpkbjabar @imas_aan_ubudiah @unjang_asari @cecepmginanjar @subhan_fahmi`;
 
     setFormData({
@@ -147,7 +141,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
     setIsSubmitting(true);
 
     try {
-      // Jika statusnya dipasang 'Posted', sinkronkan pub_status-nya ke 'Posted'
       const payload = { 
         ...formData, 
         pub_status: formData.prod_status === 'Posted' ? 'Posted' : 'Scheduled' 
@@ -182,85 +175,130 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
     }
   };
 
+  // --- LOGIKA DRAG AND DROP ---
+  const handleDragStart = (e: React.DragEvent, item: ContentPlan) => {
+    e.dataTransfer.setData('itemId', item.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Wajib agar onDrop bisa aktif
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDate: string) => {
+    e.preventDefault();
+    const itemId = e.dataTransfer.getData('itemId');
+    if (!itemId) return;
+
+    // Pembaruan UI Instan (Optimistic Update) agar terasa cepat
+    setContents(prev => prev.map(c => c.id === itemId ? { ...c, publish_date: targetDate } : c));
+
+    // Proses sinkronisasi ke server Supabase
+    try {
+      await supabase.from('contents').update({ publish_date: targetDate }).eq('id', itemId);
+      if (onPlanAdded) onPlanAdded(); // trigger statistik pembaruan di header jika diperlukan
+    } catch (error) {
+      alert("Gagal memindahkan jadwal. Memuat ulang data awal...");
+      fetchPlans(); // kembalikan ke awal jika gagal server
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fadeIn relative font-inter">
       
       {/* HEADER KALENDER */}
       <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div>
-          <h2 className={`text-2xl font-black uppercase tracking-tight flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        <div className="text-center md:text-left">
+          <h2 className={`text-2xl font-black uppercase tracking-tight flex items-center justify-center md:justify-start gap-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             <CalendarDays className="text-[#008234]" /> Content Calendar
           </h2>
           <p className="text-[10px] text-gray-400 font-bold mt-1 tracking-widest uppercase">Grid Perencanaan & Manajerial Redaksi</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4">
           <button onClick={goToToday} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:text-white' : 'bg-gray-100 border border-gray-200 text-gray-600'}`}>
             Hari Ini
           </button>
           <div className={`flex items-center rounded-xl border p-1 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-100 border-gray-200'}`}>
             <button onClick={prevMonth} className="p-2 text-gray-400 hover:text-white"><ChevronLeft size={16}/></button>
-            <span className="w-36 text-center text-xs font-black uppercase tracking-widest font-roboto">
+            <span className="w-28 md:w-36 text-center text-xs font-black uppercase tracking-widest font-roboto truncate">
               {currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
             </span>
             <button onClick={nextMonth} className="p-2 text-gray-400 hover:text-white"><ChevronRight size={16}/></button>
           </div>
-          <button onClick={() => handleOpenModal()} className="p-3 bg-[#008234] hover:bg-green-700 text-white rounded-xl shadow-lg transition-all active:scale-95">
+          <button onClick={() => handleOpenModal()} className="p-2.5 md:p-3 bg-[#008234] hover:bg-green-700 text-white rounded-xl shadow-lg transition-all active:scale-95">
             <Plus size={16} />
           </button>
         </div>
       </div>
 
-      {/* GRID KALENDER */}
-      <div className={`rounded-[30px] border overflow-hidden shadow-sm ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div className="grid grid-cols-7 border-b border-gray-500/20 bg-black/10">
-          {DAYS_OF_WEEK.map((day, idx) => (
-            <div key={day} className={`p-3 text-center text-[10px] font-black uppercase tracking-widest ${idx === 0 || idx === 6 ? 'text-rose-500' : 'text-gray-500'}`}>
-              {day}
+      {/* GRID KALENDER (REVISI RESPONSIVE MOBILE) */}
+      <div className={`rounded-[30px] border shadow-sm ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+        <div className="overflow-x-auto custom-scrollbar rounded-[30px]">
+          <div className="min-w-[800px]"> {/* Batas minimum agar di HP bisa di-scroll ke kanan tanpa gepeng */}
+            
+            <div className="grid grid-cols-7 border-b border-gray-500/20 bg-black/10">
+              {DAYS_OF_WEEK.map((day, idx) => (
+                <div key={day} className={`p-3 text-center text-[10px] font-black uppercase tracking-widest ${idx === 0 || idx === 6 ? 'text-rose-500' : 'text-gray-500'}`}>
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-7 bg-gray-500/10 gap-[1px]">
-          {calendarCells.map((day, idx) => {
-            if (day === null) return <div key={`blank-${idx}`} className={`min-h-[125px] ${isDarkMode ? 'bg-[#161920]' : 'bg-gray-50'} opacity-40`}></div>;
+            <div className="grid grid-cols-7 bg-gray-500/10 gap-[1px]">
+              {calendarCells.map((day, idx) => {
+                if (day === null) return <div key={`blank-${idx}`} className={`min-h-[125px] ${isDarkMode ? 'bg-[#161920]' : 'bg-gray-50'} opacity-40`}></div>;
 
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayContents = groupedContents[dateStr] || [];
-            const isToday = dateStr === new Date().toISOString().split('T')[0];
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayContents = groupedContents[dateStr] || [];
+                const isToday = dateStr === new Date().toISOString().split('T')[0];
 
-            return (
-              <div key={`day-${day}`} onClick={() => handleOpenModal(undefined, dateStr)} className={`min-h-[125px] p-2 flex flex-col gap-1.5 transition-colors cursor-pointer ${isDarkMode ? 'bg-[#0b0d10] hover:bg-[#13171f]' : 'bg-white hover:bg-gray-50'}`}>
-                <div className="flex justify-end">
-                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-black font-roboto ${isToday ? 'bg-[#008234] text-white shadow-md shadow-green-900/40' : 'text-gray-500'}`}>
-                    {day}
-                  </span>
-                </div>
+                return (
+                  <div 
+                    key={`day-${day}`} 
+                    onClick={() => handleOpenModal(undefined, dateStr)} 
+                    onDragOver={handleDragOver}     // Aktifkan area drop
+                    onDrop={(e) => handleDrop(e, dateStr)} // Eksekusi saat konten dijatuhkan
+                    className={`min-h-[125px] p-2 flex flex-col gap-1.5 transition-colors cursor-pointer ${isDarkMode ? 'bg-[#0b0d10] hover:bg-[#13171f]' : 'bg-white hover:bg-gray-50'}`}
+                  >
+                    <div className="flex justify-end">
+                      <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-black font-roboto ${isToday ? 'bg-[#008234] text-white shadow-md shadow-green-900/40' : 'text-gray-500'}`}>
+                        {day}
+                      </span>
+                    </div>
 
-                <div className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar pr-0.5">
-                  {dayContents.map((item) => {
-                    // REVISI POLIS: Penambahan tipe kotak redup untuk status 'Posted'
-                    const isPosted = item.prod_status === 'Posted' || item.pub_status === 'Posted';
-                    const isReady = item.prod_status === 'Ready to Post';
-                    const isEdit = item.prod_status === 'Editing/Design';
-                    
-                    const bgClass = isPosted ? 'bg-gray-500/5 border-gray-800 opacity-40 hover:opacity-80' :
-                                    isReady  ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' : 
-                                    isEdit   ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' : 
-                                               'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20';
-                    const textClass = isPosted ? 'text-gray-500 line-through' : isReady ? 'text-emerald-400' : isEdit ? 'text-amber-400' : 'text-blue-400';
+                    <div className="flex-1 space-y-1.5 overflow-y-auto custom-scrollbar pr-0.5">
+                      {dayContents.map((item) => {
+                        const isPosted = item.prod_status === 'Posted' || item.pub_status === 'Posted';
+                        const isReady = item.prod_status === 'Ready to Post';
+                        const isEdit = item.prod_status === 'Editing/Design';
+                        
+                        const bgClass = isPosted ? 'bg-gray-500/5 border-gray-800 opacity-40 hover:opacity-80' :
+                                        isReady  ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20' : 
+                                        isEdit   ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20' : 
+                                                   'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20';
+                        const textClass = isPosted ? 'text-gray-500 line-through' : isReady ? 'text-emerald-400' : isEdit ? 'text-amber-400' : 'text-blue-400';
 
-                    return (
-                      <div key={item.id} onClick={(e) => { e.stopPropagation(); handleOpenModal(item); }} className={`p-1.5 rounded-xl border flex flex-col gap-0.5 transition-all ${bgClass}`}>
-                        <div className="flex items-center justify-between"><span className={`text-[8px] font-black font-roboto ${textClass}`}>{item.publish_time}</span><span className={`text-[7px] font-black px-1 rounded ${isPosted ? 'bg-gray-800 text-gray-500' : isReady ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>{item.platforms?.slice(0,2).join(',')}</span></div>
-                        <div className={`text-[9px] font-bold leading-tight line-clamp-2 ${isPosted ? 'text-gray-600 line-through' : isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{item.title}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                        return (
+                          <div 
+                            key={item.id} 
+                            draggable={!isPosted} // Hanya konten belum post yang bisa di-drag
+                            onDragStart={(e) => handleDragStart(e, item)}
+                            onClick={(e) => { e.stopPropagation(); handleOpenModal(item); }} 
+                            className={`p-1.5 rounded-xl border flex flex-col gap-0.5 transition-all ${!isPosted && 'cursor-grab active:cursor-grabbing'} ${bgClass}`}
+                            title="Klik tahan untuk menggeser jadwal"
+                          >
+                            <div className="flex items-center justify-between"><span className={`text-[8px] font-black font-roboto ${textClass}`}>{item.publish_time}</span><span className={`text-[7px] font-black px-1 rounded ${isPosted ? 'bg-gray-800 text-gray-500' : isReady ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>{item.platforms?.slice(0,2).join(',')}</span></div>
+                            <div className={`text-[9px] font-bold leading-tight line-clamp-2 ${isPosted ? 'text-gray-600 line-through' : isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{item.title}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
         </div>
       </div>
 
@@ -291,7 +329,7 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
               </div>
             </div>
 
-            {/* INTERFACE BACA & SALiN DATA (POIN 2) */}
+            {/* INTERFACE BACA & SALiN DATA */}
             {modalMode === 'view' ? (
               <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
                 <div className="p-4 bg-black/20 rounded-2xl border border-gray-800">
@@ -384,7 +422,6 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
                     <div className="flex justify-between items-center">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Draft Teks Caption</label>
                       
-                      {/* REVISI PREMIUM: Tombol Auto Caption 1 Paragraf Terkunci Otomatis (Poin 3) */}
                       <button type="button" onClick={generateAutoCaption} className="flex items-center gap-1 px-3 py-1 bg-[#008234]/10 border border-[#008234]/30 hover:bg-[#008234] text-[#008234] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
                         <Sparkles size={11}/> Auto-Generate Caption
                       </button>
