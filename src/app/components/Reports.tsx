@@ -152,7 +152,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
 
   const formatNumber = (num: number) => num > 9999 ? `${(num / 1000).toFixed(1)}K` : num.toLocaleString('id-ID');
   
-  // Fitur Print
   const handleExportPdf = () => {
     window.print();
   };
@@ -321,7 +320,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
       </div>
 
-      {/* QUICK EDIT MODAL */}
       {editingRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
           <div className={`w-full max-w-md rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -360,19 +358,19 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       )}
 
       {/* ======================================================== */}
-      {/* DESAIN CETAK PDF EKSEKUTIF (COLORFUL)                      */}
+      {/* DESAIN CETAK PDF EKSEKUTIF (COLORFUL & ANTI-BLEED)         */}
       {/* ======================================================== */}
-      <div className="print-safe-area hidden w-full font-sans">
+      <div className="print-safe-area hidden w-full font-sans bg-white p-6 md:p-8">
         
         {/* HEADER PDF BERWARNA */}
         <div className="flex justify-between items-start border-b-4 border-[#008234] pb-6 mb-8">
            <div>
-              <h1 className="text-3xl font-black uppercase tracking-tighter text-[#008234]">PERFORMANCE REPORT</h1>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-800 mt-1">MEDIA CENTER DPC PKB GARUT<br/>COMMAND CENTER PLATFORM</h2>
+              <h1 className="text-3xl font-black uppercase tracking-tighter text-[#008234] m-0">PERFORMANCE REPORT</h1>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-800 mt-1 m-0">MEDIA CENTER DPC PKB GARUT<br/>COMMAND CENTER PLATFORM</h2>
            </div>
            <div className="text-right">
-              <p className="text-xs font-bold uppercase bg-gradient-to-r from-[#008234] to-teal-600 text-white px-4 py-1.5 inline-block mb-2 rounded-l-lg shadow-sm">CONFIDENTIAL DOCUMENT</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">
+              <p className="text-xs font-bold uppercase bg-gradient-to-r from-[#008234] to-teal-600 text-white px-4 py-1.5 inline-block mb-2 rounded-l-lg shadow-sm m-0">CONFIDENTIAL DOCUMENT</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 m-0">
                 BULAN {selectedMonth !== 'ALL' ? monthOptions.find(m => m.value === selectedMonth)?.label : 'KESELURUHAN'} {selectedYear !== 'ALL' ? selectedYear : new Date().getFullYear()}
               </p>
            </div>
@@ -382,19 +380,19 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         <div className="flex gap-6 mb-10">
            <div className="flex-1 border-l-4 border-gray-400 pl-4 bg-gray-50 p-4 rounded-r-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total Naskah</p>
-              <p className="text-3xl font-black text-gray-900">{reportData.length}</p>
+              <p className="text-3xl font-black text-gray-900 m-0">{reportData.length}</p>
            </div>
            <div className="flex-1 border-l-4 border-emerald-500 pl-4 bg-emerald-50 p-4 rounded-r-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-1">Interaksi</p>
-              <p className="text-3xl font-black text-emerald-600">{stats.totalEng.toLocaleString('id-ID')}</p>
+              <p className="text-3xl font-black text-emerald-600 m-0">{stats.totalEng.toLocaleString('id-ID')}</p>
            </div>
            <div className="flex-1 border-l-4 border-blue-500 pl-4 bg-blue-50 p-4 rounded-r-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 mb-1">Total Reach</p>
-              <p className="text-3xl font-black text-blue-600">{stats.totalReach.toLocaleString('id-ID')}</p>
+              <p className="text-3xl font-black text-blue-600 m-0">{stats.totalReach.toLocaleString('id-ID')}</p>
            </div>
            <div className="flex-1 border-l-4 border-amber-500 pl-4 bg-amber-50 p-4 rounded-r-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Top Pilar</p>
-              <p className="text-2xl font-black text-amber-600 uppercase truncate mt-1">{topPillar}</p>
+              <p className="text-2xl font-black text-amber-600 uppercase truncate mt-1 m-0">{topPillar}</p>
            </div>
         </div>
 
@@ -407,15 +405,15 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
               <div className="grid grid-cols-3 gap-8 mt-2">
                  <div>
                     <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Ringkasan Analitik</h4>
-                    <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.execSummary}</p>
+                    <p className="text-[11px] leading-relaxed text-justify text-gray-800 m-0">{aiInsights.execSummary}</p>
                  </div>
                  <div>
                     <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Performa</h4>
-                    <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.performance}</p>
+                    <p className="text-[11px] leading-relaxed text-justify text-gray-800 m-0">{aiInsights.performance}</p>
                  </div>
                  <div>
                     <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Rekomendasi</h4>
-                    <p className="text-[11px] font-bold leading-relaxed whitespace-pre-line text-gray-900">{aiInsights.recommendation}</p>
+                    <p className="text-[11px] font-bold leading-relaxed whitespace-pre-line text-gray-900 m-0">{aiInsights.recommendation}</p>
                  </div>
               </div>
            </div>
@@ -460,25 +458,33 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
 
       </div>
 
+      {/* CSS PERBAIKAN MUTLAK UNTUK PRINT */}
       <style jsx global>{`
         @media print {
           @page { size: A4 landscape; margin: 15mm; }
-          html, body { 
-            background-color: #ffffff !important; 
-            color: #000000 !important; 
-            margin: 0 !important; 
-            padding: 0 !important; 
+          
+          /* RESET SELURUH BACKGROUND DAN LAYOUT TINGKAT DEWA */
+          html, body, #__next, main { 
+            background-color: white !important; 
+            color: black !important; 
+            height: auto !important; 
+            min-height: auto !important;
+            overflow: visible !important; 
           }
+          
+          /* Paksa browser untuk mencetak warna background (penting untuk grafik warna warni) */
           * {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          /* Hancurkan semua bungkus background gelap dari next.js saat print */
-          #__next, main, .no-print, header, aside, button, nav { 
+
+          /* Hilangkan semua elemen UI Dasbor yang gelap */
+          .no-print, header, aside, button, nav { 
             display: none !important; 
           }
-          /* Munculkan khusus area cetak ke permukaan paling atas tanpa terbungkus div gelap */
+
+          /* Tampilkan area cetak khusus PDF dengan paksa */
           .print-safe-area { 
             display: block !important; 
             position: absolute !important; 
@@ -486,7 +492,10 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
             top: 0 !important; 
             width: 100% !important; 
             background: white !important; 
+            z-index: 999999 !important; 
           }
+          
+          /* Hilangkan link otomatis di margin bawah dari browser */
           a[href]:after { content: none !important; }
         }
       `}</style>
