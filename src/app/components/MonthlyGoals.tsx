@@ -1,15 +1,13 @@
 "use client";
 import React, { useMemo } from 'react';
-import { TrendingUp, TrendingDown, Activity, Globe } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
-// Mendefinisikan kontrak properti yang dipasok dari CommandCenter
 interface MonthlyGoalsProps {
   isDarkMode?: boolean;
   upcomingPlans?: any[];
   wpCount?: number;
 }
 
-// Komponen Ikon Sederhana untuk Kartu Traksi (Karena kita tidak meng-import dari luar)
 const BrandIcons = {
   IG: () => <svg className="w-4 h-4 text-[#E4405F]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>,
   FB: () => <svg className="w-4 h-4 text-[#1877F2] fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
@@ -22,37 +20,50 @@ export default function MonthlyGoals({
   wpCount = 0 
 }: MonthlyGoalsProps) {
   
-  // --- 1. MESIN WAKTU RIIL (Kalkulasi Otomatis Bulan Berjalan) ---
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  // --- 1. MESIN WAKTU PINTAR ---
+  // Mencari bulan terbaru HANYA dari data yang sudah tayang / riil, mengabaikan rencana masa depan
+  const activeDateStr = useMemo(() => {
+    let latestDate = '';
+    upcomingPlans.forEach(c => { 
+      if ((c.pub_status === 'Posted' || c.pillar === 'Imported Data') && c.publish_date) {
+        if (c.publish_date > latestDate) latestDate = c.publish_date; 
+      }
+    });
+    if (!latestDate) {
+       const d = new Date();
+       latestDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    }
+    return latestDate;
+  }, [upcomingPlans]);
 
-  // Menyaring naskah yang jadwal tayangnya jatuh pada bulan & tahun ini
+  const targetYear = parseInt(activeDateStr.split('-')[0]);
+  const targetMonth = parseInt(activeDateStr.split('-')[1]); // 1 to 12
+
+  // Menyaring naskah yang jatuh pada bulan aktif
   const thisMonthContents = upcomingPlans.filter(p => {
     if (!p.publish_date) return false;
     const dateObj = new Date(p.publish_date);
-    return dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear;
+    return dateObj.getMonth() === (targetMonth - 1) && dateObj.getFullYear() === targetYear;
   });
 
-  // Menghitung Jangkauan (Views) & Interaksi khusus bulan berjalan
   const thisMonthViews = thisMonthContents.reduce((acc, curr) => acc + (Number(curr.views) || 0), 0);
   const thisMonthEng = thisMonthContents.reduce((acc, curr) => acc + (Number(curr.engagement) || 0), 0);
 
-  // --- 2. LOGIKA MOMENTUM (Traksi Pertumbuhan Lini) ---
+  // --- 2. LOGIKA MOMENTUM PERTUMBUHAN ---
   const momentumStats = useMemo(() => {
-    let latestDateStr = '';
-    upcomingPlans.forEach(c => { if (c.publish_date && c.publish_date > latestDateStr) latestDateStr = c.publish_date; });
-    if (!latestDateStr) latestDateStr = new Date().toISOString().split('T')[0];
-    
-    const currYear = parseInt(latestDateStr.split('-')[0]);
-    const currMonth = parseInt(latestDateStr.split('-')[1]);
-    
-    const currMonthStr = `${currYear}-${String(currMonth).padStart(2, '0')}`;
-    const prevMonthDate = new Date(currYear, currMonth - 2, 1);
-    const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const currMonthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+    const prevDate = new Date(targetYear, targetMonth - 2, 1);
+    const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
     const getMom = (platKey: string, engKey: string) => {
-      const curr = upcomingPlans.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(currMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
-      const prev = upcomingPlans.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(prevMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
+      // Menggunakan fallback (Number(c[engKey]) || Number(c.engagement)) memastikan data manual & CSV terbaca semua
+      const curr = upcomingPlans
+        .filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(currMonthStr))
+        .reduce((s, c) => s + (Number(c[engKey]) || Number(c.engagement) || 0), 0);
+      
+      const prev = upcomingPlans
+        .filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(prevMonthStr))
+        .reduce((s, c) => s + (Number(c[engKey]) || Number(c.engagement) || 0), 0);
       
       let perc = 0;
       if (prev === 0) perc = curr > 0 ? 100 : 0;
@@ -66,17 +77,17 @@ export default function MonthlyGoals({
       { label: 'Instagram Traksi', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement') },
       { label: 'Facebook Traksi', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement') }
     ];
-  }, [upcomingPlans]);
+  }, [upcomingPlans, targetYear, targetMonth]);
 
-  // --- 3. SASARAN TARGET TRANSPARAN ---
+  // --- 3. SASARAN TARGET BULANAN ---
   const targets = [
     { 
       label: 'Distribusi Konten (Cross-Post)', 
-      current: thisMonthContents.filter(p => p.pub_status === 'Posted').length, 
+      current: thisMonthContents.filter(p => p.pub_status === 'Posted' || p.pillar === 'Imported Data').length, 
       target: 30, 
       unit: 'tayang', 
       color: 'purple',
-      source: 'Naskah berstatus "Posted" bulan ini' 
+      source: 'Total naskah tayang di bulan aktif' 
     },
     { 
       label: 'Jangkauan Audiens (Reach)', 
@@ -84,7 +95,7 @@ export default function MonthlyGoals({
       target: 100000, 
       unit: 'views', 
       color: 'emerald',
-      source: 'Akumulasi views konten bulan ini' 
+      source: 'Akumulasi views bulan aktif' 
     },
     { 
       label: 'Target Interaksi (Engagement)', 
@@ -92,7 +103,7 @@ export default function MonthlyGoals({
       target: 10000, 
       unit: 'reaksi', 
       color: 'amber',
-      source: 'Akumulasi likes/komen/share bulan ini' 
+      source: 'Akumulasi reaksi bulan aktif' 
     }
   ];
 
@@ -104,7 +115,7 @@ export default function MonthlyGoals({
             Target Pencapaian Bulanan
           </h3>
           <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">
-            Progress Publikasi & Distribusi Bulanan
+            Progress Publikasi & Distribusi ({new Date(targetYear, targetMonth - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })})
           </p>
         </div>
         <Activity size={18} className="text-[#008234]" />
@@ -112,7 +123,7 @@ export default function MonthlyGoals({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* RENDER 3 KARTU MONTHLY GOALS (BARIS ATAS) */}
+        {/* RENDER 3 KARTU MONTHLY GOALS */}
         {targets.map((t, idx) => {
           const percentage = Math.min(Math.round((t.current / t.target) * 100), 100);
           return (
@@ -143,7 +154,7 @@ export default function MonthlyGoals({
           );
         })}
 
-        {/* RENDER 3 KARTU PLATFORM MOMENTUM (BARIS BAWAH) */}
+        {/* RENDER 3 KARTU PLATFORM MOMENTUM */}
         {momentumStats.map((m, i) => (
           <div key={`mom-${i}`} className={`p-5 rounded-2xl border flex flex-col justify-between transition-all group ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 hover:border-gray-700' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
             <div className="flex justify-between items-center mb-4">
