@@ -5,9 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 import { 
   LayoutDashboard, UploadCloud, CalendarDays, FileText, Menu, X, 
   Globe, Sparkles, Sun, Moon, LogOut, Bell, Search, Loader2, CheckSquare,
-  Eye, MousePointer2, Send, ChevronRight, Languages, Flame, Activity
+  Eye, MousePointer2, Send, ChevronRight, Languages, Flame, Activity, TrendingUp, TrendingDown
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import TargetTracker from './TargetTracker';
 import MonthlyGoals from './MonthlyGoals';
 import RecapForm from './RecapForm';
@@ -52,7 +52,6 @@ export default function CommandCenter() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   
-  // OUTSIDE-CLICK REFS & STATES
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   
@@ -135,16 +134,34 @@ export default function CommandCenter() {
     return data;
   }, [allContents]);
 
-  const pillarDistributionData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    allContents.forEach(c => {
-      const p = c.pillar && c.pillar !== 'Imported Data' ? c.pillar : null;
-      if (p) counts[p] = (counts[p] || 0) + 1;
-    });
-    const colors = ['#008234', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444'];
-    return Object.keys(counts).map((key, i) => ({
-      name: key, value: counts[key], color: colors[i % colors.length]
-    }));
+  const momentumStats = useMemo(() => {
+    let latestDateStr = '';
+    allContents.forEach(c => { if (c.publish_date && c.publish_date > latestDateStr) latestDateStr = c.publish_date; });
+    if (!latestDateStr) latestDateStr = new Date().toISOString().split('T')[0];
+    
+    const currYear = parseInt(latestDateStr.split('-')[0]);
+    const currMonth = parseInt(latestDateStr.split('-')[1]);
+    
+    const currMonthStr = `${currYear}-${String(currMonth).padStart(2, '0')}`;
+    const prevMonthDate = new Date(currYear, currMonth - 2, 1);
+    const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+    const getMom = (platKey: string, engKey: keyof ContentPlan) => {
+      const curr = allContents.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(currMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
+      const prev = allContents.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(prevMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
+      
+      let perc = 0;
+      if (prev === 0) perc = curr > 0 ? 100 : 0;
+      else perc = Math.round(((curr - prev) / prev) * 100);
+      
+      return { curr, perc };
+    };
+
+    return [
+      { label: 'TikTok Traksi', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement') },
+      { label: 'Instagram Traksi', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement') },
+      { label: 'Facebook Traksi', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement') }
+    ];
   }, [allContents]);
 
   const postedContents = allContents.filter(c => c.pub_status === 'Posted');
@@ -209,12 +226,10 @@ export default function CommandCenter() {
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
-        {/* REVISI: Header Diperlega (h-24), Gap Ikon Diperbesar (gap-6) */}
         <header className={`h-24 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
           <div className="md:hidden"><Menu onClick={() => setMobileMenuOpen(true)} size={20} className="cursor-pointer" /></div>
           
           <div ref={searchRef} className="relative hidden md:block w-80">
-            {/* Search container lebih pipih (py-2) */}
             <div className={`flex items-center rounded-2xl px-4 py-2 border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 focus-within:border-[#008234]' : 'bg-gray-50 border-gray-200 focus-within:border-[#008234]'}`}>
               <Search size={15} className="text-gray-400 mr-2.5" />
               <input type="text" value={searchQuery} onChange={(e) => {setSearchQuery(e.target.value); setShowSearch(true);}} onFocus={() => setShowSearch(true)} placeholder="Quick Spotlight..." className={`bg-transparent text-xs outline-none w-full font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
@@ -324,7 +339,10 @@ export default function CommandCenter() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
+                {/* BAGIAN KIRI: LIVE CHART & 6 KARTU (MONTHLY GOALS + PLATFORM MOMENTUM) */}
                 <div className="lg:col-span-2 space-y-6">
+                  
+                  {/* GRAFIK 30 HARI */}
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
                       <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tren Interaksi (30 Hari)</h4>
@@ -352,45 +370,42 @@ export default function CommandCenter() {
                     </div>
                   </div>
 
-                  <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
+                  {/* KUMPULAN 6 KARTU (2 JAJAR): MONTHLY GOALS & PLATFORM MOMENTUM */}
+                  <div className="space-y-6">
+                    {/* Baris 1: 3 Kartu Monthly Goals */}
+                    <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
+                    
+                    {/* Baris 2: 3 Kartu Platform Momentum */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {momentumStats.map((m, i) => (
+                        <div key={i} className={`p-6 rounded-[25px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60 hover:border-gray-700' : 'bg-white border-gray-200 hover:border-gray-300'} shadow-sm relative overflow-hidden transition-all group`}>
+                          <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                              {m.icon} {m.label}
+                            </div>
+                            <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-md ${m.perc >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                              {m.perc >= 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+                              {Math.abs(m.perc)}%
+                            </div>
+                          </div>
+                          <div>
+                            <div className={`font-roboto text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(m.curr)}</div>
+                            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest block mt-1">Interaksi Bln Ini</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
 
+                {/* BAGIAN KANAN: TRACKER & UPCOMING RUNWAY */}
                 <div className="flex flex-col gap-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
                   </div>
                   
-                  {/* REVISI: Distribusi Pilar Horizontal & Ramping */}
-                  <div className={`p-6 rounded-3xl border flex flex-col justify-center ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
-                    <h4 className={`text-xs font-black uppercase tracking-widest mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Distribusi Pilar</h4>
-                    <div className="flex items-center h-28">
-                      <div className="w-1/2 h-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={pillarDistributionData} innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value">
-                              {pillarDistributionData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#161920' : '#fff', border:'none', borderRadius:'10px', fontSize: '10px', fontWeight: 'bold' }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="w-1/2 flex flex-col gap-2">
-                        {pillarDistributionData.map((d, i) => (
-                          <div key={i} className="flex items-center justify-between text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }}></div> 
-                              <span className="truncate">{d.name}</span>
-                            </div>
-                            <span className={`ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{d.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
                   <div className={`flex-1 p-6 rounded-3xl border relative overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <div className="flex justify-between items-center mb-6">
                       <div>
@@ -421,6 +436,7 @@ export default function CommandCenter() {
                 </div>
               </div>
 
+              {/* TUKAR POSISI TIKTOK MENJADI PERTAMA (MENGGESER WEB) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <PlatformHistoryTable title="TikTok" icon={<BrandIcons.TikTok />} platformKey="tiktok" engagementKey="tiktok_engagement" />
                 <PlatformHistoryTable title="Instagram" icon={<BrandIcons.IG />} platformKey="ig" engagementKey="ig_engagement" />
