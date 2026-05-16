@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { 
   LayoutDashboard, UploadCloud, CalendarDays, FileText, Menu, X, 
   Globe, Sparkles, Sun, Moon, LogOut, Bell, Search, Loader2, CheckSquare,
-  Eye, MousePointer2, Send, ChevronRight, Languages, Flame, Activity, TrendingUp, TrendingDown
+  Eye, MousePointer2, Send, ChevronRight, Languages, Flame, Activity, TrendingUp, TrendingDown, Edit2, Trash2
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import TargetTracker from './TargetTracker';
@@ -72,6 +72,9 @@ export default function CommandCenter() {
   const [platformStats, setPlatformStats] = useState({ web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 });
 
   const [selectedPlatformModal, setSelectedPlatformModal] = useState<{ title: string, key: string, engKey: keyof ContentPlan, icon: React.ReactNode } | null>(null);
+  
+  // STATE UNTUK EDIT DATA LANGSUNG DI DASHBOARD (TOP 5)
+  const [editingContent, setEditingContent] = useState<{ data: ContentPlan, engKey: keyof ContentPlan } | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -118,6 +121,51 @@ export default function CommandCenter() {
 
   useEffect(() => { fetchContentsAndStats(); }, []);
 
+  // FUNGSI UPDATE DATA (EDIT TOP 5)
+  const handleUpdateContent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContent) return;
+    
+    // Update lokal (Optimistic)
+    setAllContents(prev => prev.map(c => c.id === editingContent.data.id ? editingContent.data : c));
+    
+    // Update Supabase
+    try {
+      const payload: any = {
+        title: editingContent.data.title,
+        publish_date: editingContent.data.publish_date
+      };
+      
+      if (editingContent.engKey === 'web_engagement') {
+        payload.web_views = editingContent.data.web_views;
+        payload.web_engagement = editingContent.data.web_engagement;
+      } else {
+        payload.views = editingContent.data.views;
+        payload.engagement = editingContent.data.engagement;
+        payload[editingContent.engKey] = editingContent.data[editingContent.engKey];
+      }
+
+      await supabase.from('contents').update(payload).eq('id', editingContent.data.id);
+      setEditingContent(null);
+      fetchContentsAndStats(); // Refresh statistik global
+    } catch (error) {
+      alert("Gagal memperbarui data");
+    }
+  };
+
+  // FUNGSI HAPUS DATA (EDIT TOP 5)
+  const handleDeleteContent = async (id: string) => {
+    if (!window.confirm("Hapus permanen histori laporan ini?")) return;
+    setAllContents(prev => prev.filter(c => c.id !== id));
+    try {
+      await supabase.from('contents').delete().eq('id', id);
+      setEditingContent(null);
+      fetchContentsAndStats();
+    } catch (error) {
+      alert("Gagal menghapus data");
+    }
+  };
+
   const dynamicChartData = useMemo(() => {
     const data = [];
     for (let i = 29; i >= 0; i--) {
@@ -158,13 +206,13 @@ export default function CommandCenter() {
     };
 
     return [
-      { label: 'TikTok', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement') },
-      { label: 'Instagram', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement') },
-      { label: 'Facebook', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement') }
+      { label: 'TikTok', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement'), color: 'text-rose-500' },
+      { label: 'Instagram', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement'), color: 'text-pink-500' },
+      { label: 'Facebook', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement'), color: 'text-blue-500' }
     ];
   }, [allContents]);
 
-  const postedContents = allContents.filter(c => c.pub_status === 'Posted');
+  const postedContents = allContents.filter(c => c.pub_status === 'Posted' || c.pillar === 'Imported Data');
   const upcomingRunway = allContents.filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted').slice(0, 4);
 
   const statusCounts = {
@@ -181,40 +229,32 @@ export default function CommandCenter() {
     return (
       <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
         <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
-          <div className="flex items-center gap-3">
-            {icon}
-            <div>
-              <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
-              <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
-            </div>
-          </div>
-          
-          {/* REVISI: Tombol Upload Ulang / Edit Laporan */}
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setActiveTab('recap')} 
-              className={`p-1.5 rounded-lg border transition-all group relative ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-400 hover:text-white hover:border-emerald-500/50' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-emerald-500'}`} 
-              title="Upload Ulang / Edit Laporan CSV"
-            >
-              <UploadCloud size={14} />
-            </button>
-            <Flame size={16} className="text-emerald-500" />
-          </div>
+          <div className="flex items-center gap-3">{icon}<div><h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4><p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p></div></div>
+          <Flame size={16} className="text-emerald-500" />
         </div>
-
         <div className="flex-1">
           {top5Contents.length === 0 ? <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data</div> : (
             <div className="space-y-4">
               {top5Contents.map((p) => (
-                <div key={p.id} className="flex flex-col group border-b border-gray-500/5 pb-2 last:border-0">
-                  <div className={`text-[11px] font-bold truncate pr-4 mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{p.title}</div>
-                  <div className="flex justify-between items-center text-[9px] text-gray-500"><span>{p.publish_date}</span><div className="flex gap-2"><span><Eye size={10} className="inline mr-1"/>{formatNumberMax(Number(platformKey === 'web' ? p.web_views : p.views || 0))}</span><span className="font-black text-emerald-400"><MousePointer2 size={10} className="inline mr-1"/>{formatNumberMax(Number(p[engagementKey] || 0))}</span></div></div>
+                <div key={p.id} className="flex flex-col group border-b border-gray-500/5 pb-2 last:border-0 relative">
+                  <div className={`text-[11px] font-bold truncate pr-6 mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{p.title}</div>
+                  <div className="flex justify-between items-center text-[9px] text-gray-500">
+                    <span>{p.publish_date}</span>
+                    <div className="flex gap-2">
+                      <span><Eye size={10} className="inline mr-1"/>{formatNumberMax(Number(platformKey === 'web' ? p.web_views : p.views || 0))}</span>
+                      <span className="font-black text-emerald-400"><MousePointer2 size={10} className="inline mr-1"/>{formatNumberMax(Number(p[engagementKey] || 0))}</span>
+                    </div>
+                  </div>
+                  {/* TOMBOL EDIT MUNCUL SAAT DI-HOVER */}
+                  <button onClick={() => setEditingContent({ data: p, engKey: engagementKey })} className="absolute top-0 right-0 p-1.5 rounded bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
+                    <Edit2 size={12} />
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <button onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}>Lihat Seluruh {title}</button>
+        <button onClick={() => setSelectedPlatformModal({ title, key: platformKey, engKey: engagementKey, icon })} className={`w-full mt-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-400 hover:border-emerald-500/50 hover:text-white' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-emerald-500/50'}`}>Lihat Seluruh {title}</button>
       </div>
     );
   };
@@ -331,7 +371,6 @@ export default function CommandCenter() {
               <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">A</div>
               <span className={`text-xs font-bold hidden sm:block pr-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Admin</span>
               
-              {/* REVISI: Tombol Logout Dikembalikan */}
               <button onClick={signOut} className={`ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
                 <LogOut size={14} />
               </button>
@@ -362,6 +401,7 @@ export default function CommandCenter() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
+                {/* BAGIAN KIRI: LIVE CHART & 6 KARTU */}
                 <div className="lg:col-span-2 space-y-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -394,7 +434,7 @@ export default function CommandCenter() {
                   <div className="space-y-6">
                     <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
                     
-                    {/* REVISI: 1 KARTU GABUNGAN UNTUK TRAKSI (MENGHEMAT RUANG) */}
+                    {/* KARTU TRAKSI 1 KOTAK */}
                     <div className={`p-6 rounded-[25px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden`}>
                       <div className="flex items-center justify-between mb-6 border-b border-gray-500/10 pb-4">
                         <div>
@@ -407,7 +447,7 @@ export default function CommandCenter() {
                         {momentumStats.map((m, i) => (
                           <div key={i} className="px-2 md:px-4 first:pl-0 last:pr-0 flex flex-col items-center text-center">
                             <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">
-                              {m.icon} <span className="hidden md:inline">{m.label.replace(' Traksi', '')}</span>
+                              {m.icon} <span className="hidden md:inline">{m.label}</span>
                             </div>
                             <div className={`font-roboto text-xl md:text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(m.curr)}</div>
                             <div className={`mt-2 flex items-center justify-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md ${m.perc >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
@@ -424,6 +464,7 @@ export default function CommandCenter() {
 
                 <div className="flex flex-col gap-6">
                   
+                  {/* KARTU TARGET TRACKER (DI SEBELAH KANAN) */}
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
                   </div>
@@ -529,6 +570,60 @@ export default function CommandCenter() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL QUICK EDIT DATA (UNTUK TOP 5 ENGAGEMENT) */}
+          {editingContent && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+              <div className={`w-full max-w-md rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+                <div className="p-6 border-b border-gray-500/10 flex justify-between items-center bg-black/10">
+                  <h3 className={`text-sm font-black uppercase tracking-widest flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <Edit2 size={16} className="text-blue-500"/> Edit Data Historis
+                  </h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleDeleteContent(editingContent.data.id)} className="p-2 bg-red-500/10 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16}/></button>
+                    <button onClick={() => setEditingContent(null)} className="p-2 bg-gray-500/10 text-gray-400 rounded-full hover:text-white transition-all"><X size={16}/></button>
+                  </div>
+                </div>
+                <form onSubmit={handleUpdateContent} className="p-6 space-y-4">
+                  <div>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Judul Dokumen</label>
+                    <input type="text" value={editingContent.data.title} onChange={e => setEditingContent({...editingContent, data: {...editingContent.data, title: e.target.value}})} className={`w-full p-3 rounded-xl border text-xs font-bold focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Total Reach / Impresi</label>
+                      <input type="number" value={editingContent.engKey === 'web_engagement' ? (editingContent.data.web_views || 0) : (editingContent.data.views || 0)} onChange={e => {
+                        const val = Number(e.target.value);
+                        if (editingContent.engKey === 'web_engagement') {
+                          setEditingContent({...editingContent, data: {...editingContent.data, web_views: val}});
+                        } else {
+                          setEditingContent({...editingContent, data: {...editingContent.data, views: val}});
+                        }
+                      }} className={`w-full p-3 rounded-xl border text-xs font-roboto font-black text-blue-400 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Spesifik Engagement</label>
+                      <input type="number" value={editingContent.data[editingContent.engKey] || 0} onChange={e => {
+                        const val = Number(e.target.value);
+                        if (editingContent.engKey === 'web_engagement') {
+                          setEditingContent({...editingContent, data: {...editingContent.data, web_engagement: val}});
+                        } else {
+                          setEditingContent({...editingContent, data: {...editingContent.data, engagement: val, [editingContent.engKey]: val}});
+                        }
+                      }} className={`w-full p-3 rounded-xl border text-xs font-roboto font-black text-emerald-400 focus:outline-none focus:border-emerald-500 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1 block">Tanggal Tayang</label>
+                    <input type="date" value={editingContent.data.publish_date || ''} onChange={e => setEditingContent({...editingContent, data: {...editingContent.data, publish_date: e.target.value}})} className={`w-full p-3 rounded-xl border text-xs font-mono focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-900'}`} />
+                  </div>
+                  <button type="submit" className="w-full mt-2 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-900/20">
+                    Simpan Perubahan
+                  </button>
+                </form>
               </div>
             </div>
           )}
