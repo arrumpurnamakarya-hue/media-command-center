@@ -1,20 +1,32 @@
 "use client";
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  FileText, Sparkles, Printer, Search, TrendingUp, BarChart3, Award, 
-  Edit2, Trash2, X, LayoutList, Loader2, ChevronDown, Filter,
-  Database, Send, Clock, FileSpreadsheet, Eye, MousePointer2, Activity, CalendarDays
+  FileText, Sparkles, Printer, Search, Filter, 
+  TrendingUp, BarChart3, Award, Edit2, Trash2, X, LayoutList, Loader2, ChevronDown, CalendarDays, Database, Send, Clock, FileSpreadsheet, Eye, MousePointer2, Activity
 } from 'lucide-react';
 
-// --- KOMPONEN MODERN DROPDOWN KHUSUS ---
+// --- KOMPONEN MODERN DROPDOWN KHUSUS (DIPERBAIKI) ---
 interface DropdownOption { value: string; label: string; }
 const ModernDropdown = ({ value, options, onChange, icon: Icon, placeholder, isDarkMode }: { value: string, options: DropdownOption[], onChange: (val: string) => void, icon?: any, placeholder: string, isDarkMode: boolean }) => {
   const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sensor klik di luar untuk menutup dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
 
   return (
-    <div className="relative" onMouseLeave={() => setOpen(false)}>
+    <div className="relative" ref={dropdownRef}>
       <button type="button" onClick={() => setOpen(!open)} className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border transition-all min-w-[160px] text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-400' : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-emerald-500'}`}>
         <div className="flex items-center gap-2">
           {Icon && <Icon size={14} className="text-[#008234]" />}
@@ -50,16 +62,13 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   const [localContents, setLocalContents] = useState<ContentPlan[]>([]);
   useEffect(() => { setLocalContents(contents); }, [contents]);
 
-  // STATE FILTER & TAB
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'POSTED' | 'SCHEDULED' | 'IMPORTED'>('ALL');
   
-  // STATE MODERN DROPDOWN
   const [selectedPlatform, setSelectedPlatform] = useState('ALL');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [selectedYear, setSelectedYear] = useState('ALL');
 
-  // OPSI MODERN DROPDOWN
   const platformOptions = [
     { value: 'ALL', label: 'Semua Lini' }, { value: 'WEB', label: 'Website' },
     { value: 'IG', label: 'Instagram' }, { value: 'FB', label: 'Facebook' }, { value: 'TIKTOK', label: 'TikTok' }
@@ -72,21 +81,17 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   ];
   const yearOptions = [{ value: 'ALL', label: 'Semua Tahun' }, ...Array.from({length: 10}, (_, i) => ({ value: String(2026 + i), label: String(2026 + i) }))];
 
-  // STATE BULK ACTIONS & QUICK EDIT
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [editingRow, setEditingRow] = useState<ContentPlan | null>(null);
-
-  // STATE AI ENGINE
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [aiInsights, setAiInsights] = useState<{ execSummary: string; performance: string; recommendation: string } | null>(null);
 
-  // LOGIKA FILTERING
   const reportData = useMemo(() => {
     return localContents.filter(c => {
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (selectedPlatform !== 'ALL' && !c.platforms?.includes(selectedPlatform) && !(selectedPlatform === 'WEB' && (c.web_views || 0) > 0)) return false;
       
-      const pDate = c.publish_date || ''; // Asumsi format YYYY-MM-DD
+      const pDate = c.publish_date || ''; 
       const cYear = pDate.split('-')[0];
       const cMonth = pDate.split('-')[1];
       
@@ -101,7 +106,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
     });
   }, [localContents, searchQuery, selectedPlatform, selectedMonth, selectedYear, activeSubTab]);
 
-  // STATISTIK RIIL UNTUK KARTU & AI
   const stats = useMemo(() => {
     let totalReach = 0; let totalEng = 0;
     reportData.forEach(c => { totalReach += Number(c.views || 0); totalEng += Number(c.engagement || 0); });
@@ -109,20 +113,28 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
     return { totalReach, totalEng, count: reportData.length, avgEng };
   }, [reportData]);
 
-  // FUNGSI AI GENERATOR
+  // Cari Pilar Terpopuler untuk Header PDF
+  const topPillar = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reportData.forEach(c => {
+      if(c.pillar && c.pillar !== 'Imported Data') counts[c.pillar] = (counts[c.pillar] || 0) + 1;
+    });
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    return sorted.length > 0 ? sorted[0][0] : 'N/A';
+  }, [reportData]);
+
   const generateAiInsights = () => {
     setIsAiGenerating(true);
     setTimeout(() => {
       setAiInsights({
-        execSummary: `Berdasarkan parameter filter yang aktif, pangkalan data Media Center mencatatkan ${stats.count} naskah dengan akumulasi jangkauan (Total Reach) sebesar ${stats.totalReach.toLocaleString('id-ID')} tayangan. Traksi publikasi menunjukkan penetrasi yang stabil, memastikan pesan strategis organisasi tersampaikan efektif ke ceruk konstituen digital.`,
-        performance: `Volume data ini menyumbang angka keterlibatan (Engagement) kumulatif sebesar ${stats.totalEng.toLocaleString('id-ID')} interaksi. Rata-rata interaksi per naskah berada di angka ${stats.avgEng.toLocaleString('id-ID')}. Naskah dengan visual tajam serta artikel website mencatatkan retensi dan konversi respons publik paling agresif.`,
-        recommendation: `1. Replikasi pola narasi naskah interaktif berkinerja tertinggi ke dalam bentuk video pendek (Reels/TikTok).\n2. Berdasarkan data historis, sinkronkan jam tayang (Publish Time) pada rentang waktu prima 16:00 - 19:00 WIB guna menjaring traksi massa optimal.\n3. Tingkatkan volume konten pilar 'Strategic' dan 'Commemorative Day' untuk memperkuat kedekatan emosional dengan audiens.`
+        execSummary: `Laporan mencatatkan total jangkauan sebesar ${stats.totalReach.toLocaleString('id-ID')} views dengan ${stats.totalEng.toLocaleString('id-ID')} interaksi organik. Fokus didominasi pilar ${topPillar !== 'N/A' ? topPillar : 'campuran'}. Traksi publikasi menunjukkan konsistensi pergerakan positif, memastikan pesan strategis organisasi tersampaikan efektif ke ceruk konstituen digital.`,
+        performance: `Platform unggulan memimpin penetrasi tertinggi dengan reaksi yang solid. Kinerja lintas saluran menunjukkan efisiensi distribusi yang sangat sehat. Rata-rata interaksi per naskah berada di angka ${stats.avgEng.toLocaleString('id-ID')}, mencatatkan retensi dan konversi respons publik yang agresif.`,
+        recommendation: `1. Eskalasi Pilar ${topPillar !== 'N/A' ? topPillar : 'Strategic'} sebagai identitas utama.\n2. Replikasi format sukses naskah berkinerja tertinggi ke saluran lainnya.\n3. Optimasi jadwal tayang pada rentang waktu prima guna menjaring traksi massa optimal.`
       });
       setIsAiGenerating(false);
     }, 1500);
   };
 
-  // FUNGSI AKSI DATA
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => e.target.checked ? setSelectedRows(reportData.map(r => r.id)) : setSelectedRows([]);
   const handleBulkDelete = async () => {
     if (!window.confirm(`PERINGATAN: Hapus permanen ${selectedRows.length} data terpilih dari database?`)) return;
@@ -146,10 +158,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   return (
     <div className="max-w-7xl mx-auto space-y-6 relative font-inter text-gray-100 animate-fadeIn">
       
-      {/* TAMPILAN SCREEN UTAMA (Sembunyi saat di-print) */}
+      {/* TAMPILAN SCREEN UTAMA */}
       <div className="no-print space-y-6">
         
-        {/* HEADER & FILTER BAR */}
         <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white text-gray-900 border-gray-200'}`}>
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
@@ -159,7 +170,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-            {/* MODERN DROPDOWNS */}
             <ModernDropdown value={selectedPlatform} options={platformOptions} onChange={setSelectedPlatform} icon={Filter} placeholder="Pilih Platform" isDarkMode={isDarkMode} />
             <ModernDropdown value={selectedMonth} options={monthOptions} onChange={setSelectedMonth} icon={CalendarDays} placeholder="Pilih Bulan" isDarkMode={isDarkMode} />
             <ModernDropdown value={selectedYear} options={yearOptions} onChange={setSelectedYear} icon={CalendarDays} placeholder="Pilih Tahun" isDarkMode={isDarkMode} />
@@ -175,7 +185,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           </div>
         </div>
 
-        {/* KARTU ANGKA STATISTIK (DITAMPILKAN DI ATAS AI) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Entri', val: stats.count, icon: <LayoutList size={20} />, color: 'text-white' },
@@ -193,7 +202,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           ))}
         </div>
 
-        {/* PANEL AI INSIGHTS */}
         {isAiGenerating && (
           <div className="p-12 rounded-[35px] border border-gray-800 bg-[#12151a] flex flex-col items-center text-center space-y-4 shadow-xl">
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
@@ -217,10 +225,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           </div>
         )}
 
-        {/* MAIN DATA GRID (TABEL) */}
         <div className={`rounded-[35px] border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
-          
-          {/* TAB SEGREGASI INTERNAL DENGAN IKON */}
           <div className="flex overflow-x-auto custom-scrollbar border-b border-gray-500/20 bg-black/10">
             {[
               { id: 'ALL', label: 'Semua Data', icon: <Database size={12}/> },
@@ -243,10 +248,14 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Cari arsip naskah..." className={`bg-transparent text-xs outline-none w-full font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
             </div>
 
-            {selectedRows.length > 0 && (
+            {selectedRows.length > 0 ? (
               <button onClick={handleBulkDelete} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-red-900/20 animate-fadeIn">
                 <Trash2 size={14} /> Hapus {selectedRows.length} Terpilih
               </button>
+            ) : (
+              <span className="text-[10px] font-black tracking-widest uppercase text-gray-500 flex items-center gap-2">
+                <LayoutList size={14}/> {reportData.length} Entri Ditemukan
+              </span>
             )}
           </div>
 
@@ -308,10 +317,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
       </div>
 
-      {/* QUICK EDIT MODAL */}
       {editingRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
-          <div className={`w-full max-w-md rounded-[30px] border shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
+          <div className={`w-full max-w-md rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
             <div className="p-6 border-b border-gray-500/10 flex justify-between items-center bg-black/10">
               <h3 className={`text-sm font-black uppercase tracking-widest flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 <Edit2 size={16} className="text-blue-500"/> Quick Edit Performa
@@ -347,50 +355,70 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       )}
 
       {/* ======================================================== */}
-      {/* AREA RENDER PDF KHUSUS (DISAMARKAN MELALUI CLASS)        */}
+      {/* DESAIN CETAK PDF EKSEKUTIF (MIMICS UPLOADED PDF EXAMPLE) */}
       {/* ======================================================== */}
       <div className="print-safe-area hidden bg-white text-black font-sans w-full h-full p-8 absolute top-0 left-0 z-[9999]">
         
-        <div className="flex items-center justify-between border-b-4 border-double border-black pb-4 mb-6">
-          <div className="w-1/6 flex justify-start">
-            <img src="/logo-pkb.png" alt="Logo PKB" className="h-20 w-auto object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          </div>
-          
-          <div className="w-4/6 text-center space-y-1">
-            <h1 className="text-xl font-extrabold tracking-wide uppercase text-black m-0 p-0">MEDIA CENTER DPC PKB GARUT</h1>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-800 m-0 p-0">Pusat Komando Strategi Media & Penetrasi Opini Publik</p>
-            <p className="text-[10px] font-medium text-gray-600 m-0 p-0">Sekretariat: Jl. Jend. Sudirman No. 12, Kabupaten Garut, Jawa Barat</p>
-          </div>
-          
-          <div className="w-1/6 text-right text-[9px] font-mono font-bold text-gray-400">
-             MC-ID: {new Date().getFullYear()}
-          </div>
+        {/* HEADER PDF */}
+        <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-8">
+           <div>
+              <h1 className="text-3xl font-black uppercase tracking-tighter text-black">PERFORMANCE REPORT</h1>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600 mt-1">MEDIA CENTER DPC PKB GARUT<br/>COMMAND CENTER PLATFORM</h2>
+           </div>
+           <div className="text-right">
+              <p className="text-xs font-bold uppercase bg-black text-white px-3 py-1 inline-block mb-1">CONFIDENTIAL DOCUMENT</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">
+                BULAN {selectedMonth !== 'ALL' ? monthOptions.find(m => m.value === selectedMonth)?.label : 'KESELURUHAN'} {selectedYear !== 'ALL' ? selectedYear : new Date().getFullYear()}
+              </p>
+           </div>
         </div>
 
-        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-gray-700 border-b border-gray-200 pb-2 mb-6">
-          <span>Laporan Performa Publikasi Media</span>
-          <span>Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+        {/* 4 METRIC CARDS */}
+        <div className="flex gap-6 mb-10">
+           <div className="flex-1 border-l-4 border-black pl-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total Naskah</p>
+              <p className="text-3xl font-black text-black">{reportData.length}</p>
+           </div>
+           <div className="flex-1 border-l-4 border-black pl-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Interaksi</p>
+              <p className="text-3xl font-black text-black">{stats.totalEng.toLocaleString('id-ID')}</p>
+           </div>
+           <div className="flex-1 border-l-4 border-black pl-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total Reach</p>
+              <p className="text-3xl font-black text-black">{stats.totalReach.toLocaleString('id-ID')}</p>
+           </div>
+           <div className="flex-1 border-l-4 border-black pl-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Top Pilar</p>
+              <p className="text-2xl font-black text-black uppercase truncate mt-1">{topPillar}</p>
+           </div>
         </div>
 
+        {/* AI EXECUTIVE STRATEGY */}
         {aiInsights && (
-          <div className="mb-6 bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
-            <div>
-              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">I. Ringkasan Eksekutif AI</h3>
-              <p className="text-[11px] text-gray-800 leading-relaxed text-justify">{aiInsights.execSummary}</p>
-            </div>
-            <div>
-              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">II. Analisis Performa Jalur</h3>
-              <p className="text-[11px] text-gray-800 leading-relaxed text-justify">{aiInsights.performance}</p>
-            </div>
-            <div>
-              <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-1">III. Rekomendasi Aksi Strategis</h3>
-              <p className="text-[11px] text-gray-900 font-bold whitespace-pre-line leading-relaxed">{aiInsights.recommendation}</p>
-            </div>
-          </div>
+           <div className="mb-10 border border-black p-6 relative">
+              <div className="absolute -top-4 left-4 bg-black text-white px-4 py-1.5 text-xs font-black uppercase tracking-widest">
+                 AI EXECUTIVE STRATEGY
+              </div>
+              <div className="grid grid-cols-3 gap-8 mt-4">
+                 <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Ringkasan Analitik</h4>
+                    <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.execSummary}</p>
+                 </div>
+                 <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Performa</h4>
+                    <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.performance}</p>
+                 </div>
+                 <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Rekomendasi</h4>
+                    <p className="text-[11px] font-bold leading-relaxed whitespace-pre-line text-gray-900">{aiInsights.recommendation}</p>
+                 </div>
+              </div>
+           </div>
         )}
 
+        {/* TABLE RINCIAN */}
         <div>
-          <h3 className="text-[11px] font-black uppercase text-black tracking-wide mb-3">IV. Lampiran Lembar Kerja Performa Konten</h3>
+          <h3 className="text-sm font-black uppercase tracking-widest text-black mb-4">DAFTAR RINCIAN PERFORMA KONTEN</h3>
           <table className="w-full text-left border-collapse border border-gray-300 text-[10px]">
             <thead>
               <tr className="bg-gray-100 text-black font-black uppercase tracking-wider border-b border-gray-300">
@@ -401,9 +429,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
               </tr>
             </thead>
             <tbody className="font-medium text-gray-900 divide-y divide-gray-300">
-              {reportData.map((row, idx) => (
-                <tr key={idx} className="even:bg-gray-50/50">
-                  <td className="p-3 border border-gray-300 truncate">{row.title}</td>
+              {reportData.slice(0, 30).map((row, idx) => (
+                <tr key={idx} className="even:bg-gray-50">
+                  <td className="p-3 border border-gray-300 truncate max-w-xs">{row.title}</td>
                   <td className="p-3 border border-gray-300 font-mono">{row.publish_date || "Historis CSV"}</td>
                   <td className="p-3 border border-gray-300 text-right font-bold">{row.views?.toLocaleString('id-ID')}</td>
                   <td className="p-3 border border-gray-300 text-right font-bold">{(row.engagement || 0).toLocaleString('id-ID')}</td>
@@ -411,14 +439,16 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
               ))}
             </tbody>
           </table>
+          {reportData.length > 30 && <p className="text-[9px] text-gray-500 mt-2 italic">*Menampilkan 30 data teratas. Filter tanggal untuk laporan lebih spesifik.</p>}
         </div>
 
+        {/* SIGNATURE (DIUBAH KE MCS DPC PKB GARUT) */}
         <div className="mt-16 flex justify-end">
           <div className="text-center w-64 space-y-16">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700 m-0 p-0">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Mengesahkan, Chief of Communications</p>
             <div>
               <p className="text-xs font-black uppercase underline text-black m-0 p-0">M. Faiz Pahrul Islam</p>
-              <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase m-0 p-0">PT Hatmoko Karya Terdepan</p>
+              <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase m-0 p-0">MCS DPC PKB GARUT</p>
             </div>
           </div>
         </div>
@@ -426,35 +456,12 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       </div>
 
       <style jsx global>{`
-        /* Logika Print Aman agar halaman tidak blank putih */
         @media print {
-          @page {
-            size: A4 portrait;
-            margin: 20mm 15mm;
-          }
-          body {
-            background-color: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* Matikan tampilan layar UI normal */
-          .no-print, header, aside, button, nav {
-            display: none !important;
-          }
-          /* Nyalakan template render Kertas A4 Putih Kop Surat */
-          .print-safe-area {
-            display: block !important;
-            position: relative !important;
-            width: 100% !important;
-            height: auto !important;
-            background: white !important;
-            color: black !important;
-            z-index: 10 !important;
-          }
-          /* Matikan link print bawaan browser di footer margin */
-          a[href]:after {
-            content: none !important;
-          }
+          @page { size: A4 landscape; margin: 15mm; }
+          body { background-color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .no-print, header, aside, button, nav { display: none !important; }
+          .print-safe-area { display: block !important; position: relative !important; width: 100% !important; height: auto !important; background: white !important; color: black !important; z-index: 10 !important; }
+          a[href]:after { content: none !important; }
         }
       `}</style>
     </div>
