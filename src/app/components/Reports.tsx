@@ -6,13 +6,12 @@ import {
   TrendingUp, BarChart3, Award, Edit2, Trash2, X, LayoutList, Loader2, ChevronDown, CalendarDays, Database, Send, Clock, FileSpreadsheet, Eye, MousePointer2, Activity
 } from 'lucide-react';
 
-// --- KOMPONEN MODERN DROPDOWN KHUSUS (DIPERBAIKI) ---
+// --- KOMPONEN MODERN DROPDOWN KHUSUS ---
 interface DropdownOption { value: string; label: string; }
 const ModernDropdown = ({ value, options, onChange, icon: Icon, placeholder, isDarkMode }: { value: string, options: DropdownOption[], onChange: (val: string) => void, icon?: any, placeholder: string, isDarkMode: boolean }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sensor klik di luar untuk menutup dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -113,7 +112,6 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
     return { totalReach, totalEng, count: reportData.length, avgEng };
   }, [reportData]);
 
-  // Cari Pilar Terpopuler untuk Header PDF
   const topPillar = useMemo(() => {
     const counts: Record<string, number> = {};
     reportData.forEach(c => {
@@ -153,12 +151,18 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
   };
 
   const formatNumber = (num: number) => num > 9999 ? `${(num / 1000).toFixed(1)}K` : num.toLocaleString('id-ID');
-  const handleExportPdf = () => window.print();
+  
+  // Fitur Print
+  const handleExportPdf = () => {
+    window.print();
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 relative font-inter text-gray-100 animate-fadeIn">
       
-      {/* TAMPILAN SCREEN UTAMA */}
+      {/* ======================================================== */}
+      {/* TAMPILAN SCREEN UTAMA (Sembunyikan saat cetak) */}
+      {/* ======================================================== */}
       <div className="no-print space-y-6">
         
         <div className={`p-6 md:p-8 rounded-[35px] border shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white text-gray-900 border-gray-200'}`}>
@@ -317,6 +321,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
       </div>
 
+      {/* QUICK EDIT MODAL */}
       {editingRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
           <div className={`w-full max-w-md rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -355,61 +360,61 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       )}
 
       {/* ======================================================== */}
-      {/* DESAIN CETAK PDF EKSEKUTIF (MIMICS UPLOADED PDF EXAMPLE) */}
+      {/* DESAIN CETAK PDF EKSEKUTIF (COLORFUL)                      */}
       {/* ======================================================== */}
-      <div className="print-safe-area hidden bg-white text-black font-sans w-full h-full p-8 absolute top-0 left-0 z-[9999]">
+      <div className="print-safe-area hidden w-full font-sans">
         
-        {/* HEADER PDF */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-8">
+        {/* HEADER PDF BERWARNA */}
+        <div className="flex justify-between items-start border-b-4 border-[#008234] pb-6 mb-8">
            <div>
-              <h1 className="text-3xl font-black uppercase tracking-tighter text-black">PERFORMANCE REPORT</h1>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-600 mt-1">MEDIA CENTER DPC PKB GARUT<br/>COMMAND CENTER PLATFORM</h2>
+              <h1 className="text-3xl font-black uppercase tracking-tighter text-[#008234]">PERFORMANCE REPORT</h1>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-gray-800 mt-1">MEDIA CENTER DPC PKB GARUT<br/>COMMAND CENTER PLATFORM</h2>
            </div>
            <div className="text-right">
-              <p className="text-xs font-bold uppercase bg-black text-white px-3 py-1 inline-block mb-1">CONFIDENTIAL DOCUMENT</p>
+              <p className="text-xs font-bold uppercase bg-gradient-to-r from-[#008234] to-teal-600 text-white px-4 py-1.5 inline-block mb-2 rounded-l-lg shadow-sm">CONFIDENTIAL DOCUMENT</p>
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-600">
                 BULAN {selectedMonth !== 'ALL' ? monthOptions.find(m => m.value === selectedMonth)?.label : 'KESELURUHAN'} {selectedYear !== 'ALL' ? selectedYear : new Date().getFullYear()}
               </p>
            </div>
         </div>
 
-        {/* 4 METRIC CARDS */}
+        {/* 4 METRIC CARDS BERWARNA */}
         <div className="flex gap-6 mb-10">
-           <div className="flex-1 border-l-4 border-black pl-4">
+           <div className="flex-1 border-l-4 border-gray-400 pl-4 bg-gray-50 p-4 rounded-r-xl">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total Naskah</p>
-              <p className="text-3xl font-black text-black">{reportData.length}</p>
+              <p className="text-3xl font-black text-gray-900">{reportData.length}</p>
            </div>
-           <div className="flex-1 border-l-4 border-black pl-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Interaksi</p>
-              <p className="text-3xl font-black text-black">{stats.totalEng.toLocaleString('id-ID')}</p>
+           <div className="flex-1 border-l-4 border-emerald-500 pl-4 bg-emerald-50 p-4 rounded-r-xl">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-1">Interaksi</p>
+              <p className="text-3xl font-black text-emerald-600">{stats.totalEng.toLocaleString('id-ID')}</p>
            </div>
-           <div className="flex-1 border-l-4 border-black pl-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total Reach</p>
-              <p className="text-3xl font-black text-black">{stats.totalReach.toLocaleString('id-ID')}</p>
+           <div className="flex-1 border-l-4 border-blue-500 pl-4 bg-blue-50 p-4 rounded-r-xl">
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-700 mb-1">Total Reach</p>
+              <p className="text-3xl font-black text-blue-600">{stats.totalReach.toLocaleString('id-ID')}</p>
            </div>
-           <div className="flex-1 border-l-4 border-black pl-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Top Pilar</p>
-              <p className="text-2xl font-black text-black uppercase truncate mt-1">{topPillar}</p>
+           <div className="flex-1 border-l-4 border-amber-500 pl-4 bg-amber-50 p-4 rounded-r-xl">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Top Pilar</p>
+              <p className="text-2xl font-black text-amber-600 uppercase truncate mt-1">{topPillar}</p>
            </div>
         </div>
 
-        {/* AI EXECUTIVE STRATEGY */}
+        {/* AI EXECUTIVE STRATEGY BERWARNA */}
         {aiInsights && (
-           <div className="mb-10 border border-black p-6 relative">
-              <div className="absolute -top-4 left-4 bg-black text-white px-4 py-1.5 text-xs font-black uppercase tracking-widest">
+           <div className="mb-10 border-2 border-emerald-100 bg-emerald-50/40 p-6 rounded-2xl relative">
+              <div className="absolute -top-4 left-6 bg-[#008234] text-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md shadow-md">
                  AI EXECUTIVE STRATEGY
               </div>
-              <div className="grid grid-cols-3 gap-8 mt-4">
+              <div className="grid grid-cols-3 gap-8 mt-2">
                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Ringkasan Analitik</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Ringkasan Analitik</h4>
                     <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.execSummary}</p>
                  </div>
                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Performa</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Performa</h4>
                     <p className="text-[11px] leading-relaxed text-justify text-gray-800">{aiInsights.performance}</p>
                  </div>
                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b border-gray-300 pb-1.5 mb-3 text-black">Rekomendasi</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest border-b-2 border-emerald-200 pb-1.5 mb-3 text-emerald-800">Rekomendasi</h4>
                     <p className="text-[11px] font-bold leading-relaxed whitespace-pre-line text-gray-900">{aiInsights.recommendation}</p>
                  </div>
               </div>
@@ -418,23 +423,23 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
 
         {/* TABLE RINCIAN */}
         <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-black mb-4">DAFTAR RINCIAN PERFORMA KONTEN</h3>
-          <table className="w-full text-left border-collapse border border-gray-300 text-[10px]">
+          <h3 className="text-sm font-black uppercase tracking-widest text-gray-800 mb-4">DAFTAR RINCIAN PERFORMA KONTEN</h3>
+          <table className="w-full text-left border-collapse border border-gray-200 text-[10px]">
             <thead>
-              <tr className="bg-gray-100 text-black font-black uppercase tracking-wider border-b border-gray-300">
-                <th className="p-3 border border-gray-300 w-1/2">Judul Naskah Terbit</th>
-                <th className="p-3 border border-gray-300 w-1/6">Tanggal</th>
-                <th className="p-3 border border-gray-300 w-1/6 text-right">Reach</th>
-                <th className="p-3 border border-gray-300 w-1/6 text-right">Engagement</th>
+              <tr className="bg-[#008234] text-white font-black uppercase tracking-wider">
+                <th className="p-3 border border-[#008234] w-1/2">Judul Naskah Terbit</th>
+                <th className="p-3 border border-[#008234] w-1/6">Tanggal</th>
+                <th className="p-3 border border-[#008234] w-1/6 text-right">Reach</th>
+                <th className="p-3 border border-[#008234] w-1/6 text-right">Engagement</th>
               </tr>
             </thead>
-            <tbody className="font-medium text-gray-900 divide-y divide-gray-300">
+            <tbody className="font-medium text-gray-900">
               {reportData.slice(0, 30).map((row, idx) => (
-                <tr key={idx} className="even:bg-gray-50">
-                  <td className="p-3 border border-gray-300 truncate max-w-xs">{row.title}</td>
-                  <td className="p-3 border border-gray-300 font-mono">{row.publish_date || "Historis CSV"}</td>
-                  <td className="p-3 border border-gray-300 text-right font-bold">{row.views?.toLocaleString('id-ID')}</td>
-                  <td className="p-3 border border-gray-300 text-right font-bold">{(row.engagement || 0).toLocaleString('id-ID')}</td>
+                <tr key={idx} className="even:bg-emerald-50/50 border-b border-gray-200">
+                  <td className="p-3 border-x border-gray-200 truncate max-w-xs">{row.title}</td>
+                  <td className="p-3 border-x border-gray-200 font-mono">{row.publish_date || "Historis CSV"}</td>
+                  <td className="p-3 border-x border-gray-200 text-right font-bold text-blue-600">{row.views?.toLocaleString('id-ID')}</td>
+                  <td className="p-3 border-x border-gray-200 text-right font-bold text-emerald-600">{(row.engagement || 0).toLocaleString('id-ID')}</td>
                 </tr>
               ))}
             </tbody>
@@ -442,13 +447,13 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           {reportData.length > 30 && <p className="text-[9px] text-gray-500 mt-2 italic">*Menampilkan 30 data teratas. Filter tanggal untuk laporan lebih spesifik.</p>}
         </div>
 
-        {/* SIGNATURE (DIUBAH KE MCS DPC PKB GARUT) */}
+        {/* SIGNATURE */}
         <div className="mt-16 flex justify-end">
           <div className="text-center w-64 space-y-16">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700 m-0 p-0">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Mengesahkan, Chief of Communications</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700 m-0 p-0">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Chief of Communication</p>
             <div>
-              <p className="text-xs font-black uppercase underline text-black m-0 p-0">M. Faiz Pahrul Islam</p>
-              <p className="text-[9px] text-gray-500 font-bold tracking-widest uppercase m-0 p-0">MCS DPC PKB GARUT</p>
+              <p className="text-xs font-black uppercase underline text-black m-0 p-0">MOH FAIZ PAHRUL I</p>
+              <p className="text-[10px] text-gray-600 font-bold tracking-widest uppercase m-0 p-0">MCS DPC PKB GARUT</p>
             </div>
           </div>
         </div>
@@ -458,9 +463,30 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       <style jsx global>{`
         @media print {
           @page { size: A4 landscape; margin: 15mm; }
-          body { background-color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .no-print, header, aside, button, nav { display: none !important; }
-          .print-safe-area { display: block !important; position: relative !important; width: 100% !important; height: auto !important; background: white !important; color: black !important; z-index: 10 !important; }
+          html, body { 
+            background-color: #ffffff !important; 
+            color: #000000 !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Hancurkan semua bungkus background gelap dari next.js saat print */
+          #__next, main, .no-print, header, aside, button, nav { 
+            display: none !important; 
+          }
+          /* Munculkan khusus area cetak ke permukaan paling atas tanpa terbungkus div gelap */
+          .print-safe-area { 
+            display: block !important; 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            background: white !important; 
+          }
           a[href]:after { content: none !important; }
         }
       `}</style>
