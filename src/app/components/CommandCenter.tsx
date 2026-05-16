@@ -234,7 +234,7 @@ export default function CommandCenter() {
       
       <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} border-r flex flex-col transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 shadow-sm`}>
         <div className={`flex items-center space-x-3 px-6 py-6 border-b border-gray-100/10 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          <div className="w-10 h-10 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-lg shadow-green-900/20">PKB</div>
+          <img src="/logo-pkb.png" alt="Logo PKB" className="w-10 h-10 object-contain drop-shadow-lg" />
           <div><h1 className="font-black text-xs uppercase tracking-wider">Command Center</h1><p className="text-[9px] text-gray-400 font-bold tracking-widest uppercase">Media Strategist</p></div>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
