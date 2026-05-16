@@ -182,36 +182,6 @@ export default function CommandCenter() {
     return data;
   }, [allContents]);
 
-  const momentumStats = useMemo(() => {
-    let latestDateStr = '';
-    allContents.forEach(c => { if (c.publish_date && c.publish_date > latestDateStr) latestDateStr = c.publish_date; });
-    if (!latestDateStr) latestDateStr = new Date().toISOString().split('T')[0];
-    
-    const currYear = parseInt(latestDateStr.split('-')[0]);
-    const currMonth = parseInt(latestDateStr.split('-')[1]);
-    
-    const currMonthStr = `${currYear}-${String(currMonth).padStart(2, '0')}`;
-    const prevMonthDate = new Date(currYear, currMonth - 2, 1);
-    const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
-
-    const getMom = (platKey: string, engKey: keyof ContentPlan) => {
-      const curr = allContents.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(currMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
-      const prev = allContents.filter(c => c.platforms?.includes(platKey) && c.publish_date?.startsWith(prevMonthStr)).reduce((s, c) => s + Number(c[engKey] || 0), 0);
-      
-      let perc = 0;
-      if (prev === 0) perc = curr > 0 ? 100 : 0;
-      else perc = Math.round(((curr - prev) / prev) * 100);
-      
-      return { curr, perc };
-    };
-
-    return [
-      { label: 'TikTok', icon: <BrandIcons.TikTok />, ...getMom('TIKTOK', 'tiktok_engagement'), color: 'text-rose-500' },
-      { label: 'Instagram', icon: <BrandIcons.IG />, ...getMom('IG', 'ig_engagement'), color: 'text-pink-500' },
-      { label: 'Facebook', icon: <BrandIcons.FB />, ...getMom('FB', 'fb_engagement'), color: 'text-blue-500' }
-    ];
-  }, [allContents]);
-
   const postedContents = allContents.filter(c => c.pub_status === 'Posted' || c.pillar === 'Imported Data');
   const upcomingRunway = allContents.filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted').slice(0, 4);
 
@@ -401,7 +371,6 @@ export default function CommandCenter() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* BAGIAN KIRI: LIVE CHART & 6 KARTU */}
                 <div className="lg:col-span-2 space-y-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -433,38 +402,12 @@ export default function CommandCenter() {
 
                   <div className="space-y-6">
                     <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
-                    
-                    {/* KARTU TRAKSI 1 KOTAK */}
-                    <div className={`p-6 rounded-[25px] border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden`}>
-                      <div className="flex items-center justify-between mb-6 border-b border-gray-500/10 pb-4">
-                        <div>
-                          <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Traksi Pertumbuhan Lini</h4>
-                          <p className="text-[9px] text-gray-500 font-bold uppercase mt-1">Momentum Platform Bulan Ini</p>
-                        </div>
-                        <Activity size={16} className="text-emerald-500" />
-                      </div>
-                      <div className="grid grid-cols-3 divide-x divide-gray-500/20">
-                        {momentumStats.map((m, i) => (
-                          <div key={i} className="px-2 md:px-4 first:pl-0 last:pr-0 flex flex-col items-center text-center">
-                            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">
-                              {m.icon} <span className="hidden md:inline">{m.label}</span>
-                            </div>
-                            <div className={`font-roboto text-xl md:text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(m.curr)}</div>
-                            <div className={`mt-2 flex items-center justify-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md ${m.perc >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                              {m.perc >= 0 ? <TrendingUp size={10}/> : <TrendingDown size={10}/>}
-                              {Math.abs(m.perc)}%
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
 
                 </div>
 
                 <div className="flex flex-col gap-6">
                   
-                  {/* KARTU TARGET TRACKER (DI SEBELAH KANAN) */}
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
                     <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
                   </div>
