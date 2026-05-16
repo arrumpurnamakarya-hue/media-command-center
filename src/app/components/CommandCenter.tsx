@@ -338,8 +338,12 @@ export default function CommandCenter() {
             </div>
 
             <div className={`flex items-center space-x-3 pl-2 py-1 pr-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">A</div>
-              <span className={`text-xs font-bold hidden sm:block pr-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Admin</span>
+              <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
+                {user?.email ? user.email.charAt(0) : 'A'}
+              </div>
+              <span className={`text-xs font-bold hidden sm:block pr-1 capitalize ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
+              </span>
               
               <button onClick={signOut} className={`ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
                 <LogOut size={14} />
