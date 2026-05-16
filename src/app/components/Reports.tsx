@@ -320,6 +320,7 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
         </div>
       </div>
 
+      {/* QUICK EDIT MODAL */}
       {editingRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn no-print">
           <div className={`w-full max-w-md rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -358,9 +359,9 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
       )}
 
       {/* ======================================================== */}
-      {/* DESAIN CETAK PDF EKSEKUTIF (COLORFUL & ANTI-BLEED)         */}
+      {/* DESAIN CETAK PDF EKSEKUTIF (COLORFUL)                      */}
       {/* ======================================================== */}
-      <div className="print-safe-area hidden w-full font-sans bg-white p-6 md:p-8">
+      <div className="print-safe-area hidden w-full font-sans">
         
         {/* HEADER PDF BERWARNA */}
         <div className="flex justify-between items-start border-b-4 border-[#008234] pb-6 mb-8">
@@ -445,8 +446,8 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
           {reportData.length > 30 && <p className="text-[9px] text-gray-500 mt-2 italic">*Menampilkan 30 data teratas. Filter tanggal untuk laporan lebih spesifik.</p>}
         </div>
 
-        {/* SIGNATURE */}
-        <div className="mt-16 flex justify-end">
+        {/* SIGNATURE BLOCK */}
+        <div className="mt-16 flex justify-end signature-block">
           <div className="text-center w-64 space-y-16">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-700 m-0 p-0">Garut, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>Chief of Communication</p>
             <div>
@@ -458,44 +459,54 @@ export default function Reports({ contents = [], isDarkMode = true }: ReportsPro
 
       </div>
 
-      {/* CSS PERBAIKAN MUTLAK UNTUK PRINT */}
       <style jsx global>{`
         @media print {
-          @page { size: A4 landscape; margin: 15mm; }
+          /* Hapus setelan portrait/landscape paksa agar user bisa memilih di dialog Print */
+          @page { margin: 15mm; }
           
-          /* RESET SELURUH BACKGROUND DAN LAYOUT TINGKAT DEWA */
-          html, body, #__next, main { 
-            background-color: white !important; 
-            color: black !important; 
+          /* Hancurkan kunci layout dari Next.js dan Tailwind secara paksa */
+          html, body, #__next, .min-h-screen, .h-screen, .overflow-hidden, .overflow-y-auto { 
             height: auto !important; 
-            min-height: auto !important;
+            min-height: 0 !important;
+            width: 100% !important;
             overflow: visible !important; 
+            background: #ffffff !important; 
+            color: #000000 !important;
+            position: static !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           
-          /* Paksa browser untuk mencetak warna background (penting untuk grafik warna warni) */
+          /* Izinkan browser merender warna grafis latar */
           * {
             -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-
-          /* Hilangkan semua elemen UI Dasbor yang gelap */
+          
+          /* Sembunyikan SEMUA elemen Dasbor */
           .no-print, header, aside, button, nav { 
             display: none !important; 
           }
-
-          /* Tampilkan area cetak khusus PDF dengan paksa */
+          
+          /* Bebaskan elemen cetak (PDF Area) */
           .print-safe-area { 
             display: block !important; 
-            position: absolute !important; 
-            left: 0 !important; 
-            top: 0 !important; 
+            position: static !important; 
             width: 100% !important; 
+            height: auto !important;
             background: white !important; 
-            z-index: 999999 !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
           }
+
+          /* Aturan pintar tabel agar tidak terpotong jelek antar halaman */
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
           
-          /* Hilangkan link otomatis di margin bawah dari browser */
+          /* Amankan tanda tangan agar selalu menempel dengan utuh */
+          .signature-block { page-break-inside: avoid; }
+          
           a[href]:after { content: none !important; }
         }
       `}</style>
