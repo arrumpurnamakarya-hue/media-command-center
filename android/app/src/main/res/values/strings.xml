@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">mediacenter-pkb</string>
+    <string name="title_activity_main">mediacenter-pkb</string>
+    <string name="package_name">com.pkbgarut.commandcenter</string>
+    <string name="custom_url_scheme">com.pkbgarut.commandcenter</string>
+</resources>
