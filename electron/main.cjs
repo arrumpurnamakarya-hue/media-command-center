@@ -1,7 +1,16 @@
 const { app, BrowserWindow, shell } = require('electron');
+const path = require('path');
 
 const APP_URL =
   process.env.APP_URL || 'https://media-command-center-plum.vercel.app';
+
+const iconPath = app.isPackaged
+  ? path.join(process.resourcesPath, 'build', 'icon.ico')
+  : path.join(__dirname, '..', 'build', 'icon.ico');
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.mediacenter.commandcenter');
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -13,11 +22,12 @@ function createWindow() {
     backgroundColor: '#0b0d10',
     show: false,
     autoHideMenuBar: true,
+    icon: iconPath,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
-    },
+      sandbox: true
+    }
   });
 
   win.once('ready-to-show', () => {
