@@ -55,6 +55,11 @@ type UserProfile = {
   status?: string | null;
 };
 
+type ProfileFormState = {
+  full_name: string;
+  phone: string;
+};
+
 export default function CommandCenter() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -89,6 +94,12 @@ export default function CommandCenter() {
   const [editingContent, setEditingContent] = useState<{ data: ContentPlan, engKey: keyof ContentPlan } | null>(null);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [profileForm, setProfileForm] = useState<ProfileFormState>({ full_name: '', phone: '' });
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -124,6 +135,17 @@ export default function CommandCenter() {
 
     fetchProfile();
   }, [user?.id]);
+
+  useEffect(() => {
+    const fallbackProfileName = user?.email
+      ? user.email.split('@')[0].replace(/[._-]/g, ' ')
+      : '';
+
+    setProfileForm({
+      full_name: profile?.full_name || fallbackProfileName,
+      phone: profile?.phone || '',
+    });
+  }, [profile?.full_name, profile?.phone, user?.email]);
 
   const fetchContentsAndStats = async () => {
     try {
@@ -237,6 +259,90 @@ export default function CommandCenter() {
   const displayRole = profile?.role || 'Mediacenter';
   const displayInitial = displayName.charAt(0).toUpperCase();
   const avatarUrl = profile?.avatar_url || '';
+
+  const resetProfileFeedback = () => {
+    setProfileError(null);
+    setProfileSuccess(null);
+  };
+
+  const openProfileSettings = () => {
+    resetProfileFeedback();
+    setSelectedAvatarFile(null);
+    setShowProfileMenu(false);
+    setShowProfileSettings(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id) {
+      setProfileError('Sesi login tidak ditemukan. Silakan login ulang.');
+      return;
+    }
+
+    const cleanName = profileForm.full_name.trim();
+    if (!cleanName) {
+      setProfileError('Nama lengkap wajib diisi.');
+      return;
+    }
+
+    setProfileSaving(true);
+    resetProfileFeedback();
+
+    try {
+      let nextAvatarUrl = profile?.avatar_url || '';
+
+      if (selectedAvatarFile) {
+        const safeFileName = selectedAvatarFile.name
+          .toLowerCase()
+          .replace(/[^a-z0-9.]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+        const filePath = `${user.id}/${Date.now()}-${safeFileName || 'avatar.jpg'}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, selectedAvatarFile, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        nextAvatarUrl = publicUrlData.publicUrl;
+      }
+
+      const payload = {
+        user_id: user.id,
+        full_name: cleanName,
+        email: user.email || profile?.email || '',
+        phone: profileForm.phone.trim(),
+        role: profile?.role || 'Viewer',
+        avatar_url: nextAvatarUrl,
+        status: profile?.status || 'pending',
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert(payload, { onConflict: 'user_id' })
+        .select('full_name, email, phone, role, avatar_url, status')
+        .single();
+
+      if (error) throw error;
+
+      setProfile(data);
+      setSelectedAvatarFile(null);
+      setProfileSuccess('Profil berhasil diperbarui.');
+    } catch (err: any) {
+      setProfileError(err?.message || 'Gagal memperbarui profil.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const PlatformHistoryTable = ({ title, icon, platformKey, engagementKey }: { title: string, icon: React.ReactNode, platformKey: string, engagementKey: keyof ContentPlan }) => {
     const platformContents = postedContents.filter(c => c.platforms?.includes(platformKey.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
@@ -477,13 +583,10 @@ export default function CommandCenter() {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        alert('Fitur edit profil dan upload foto akan ditambahkan di tahap register tim.');
-                      }}
+                      onClick={openProfileSettings}
                       className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-bold transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-800/70' : 'text-gray-700 hover:bg-gray-100'}`}
                     >
-                      <span>Edit Profil</span>
+                      <span>Profil Saya</span>
                       <ChevronRight size={14} className="text-gray-500" />
                     </button>
 
@@ -670,6 +773,145 @@ export default function CommandCenter() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {showProfileSettings && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+              <div className={`w-full max-w-lg rounded-[30px] shadow-2xl border overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
+                <div className="p-5 md:p-6 border-b border-gray-500/10 flex justify-between items-center bg-black/10">
+                  <div>
+                    <h3 className={`text-sm font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Profil Saya
+                    </h3>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                      Atur identitas dan foto profil tim
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileSettings(false);
+                      setSelectedAvatarFile(null);
+                      resetProfileFeedback();
+                    }}
+                    className="p-2 bg-gray-500/10 text-gray-400 rounded-full hover:text-white transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveProfile} className="p-5 md:p-6 space-y-5 max-h-[80dvh] overflow-y-auto custom-scrollbar">
+                  <div className={`p-4 rounded-2xl border flex items-center gap-4 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="w-16 h-16 rounded-2xl object-cover border border-emerald-500/30 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-[#008234] rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-sm uppercase">
+                        {displayInitial}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-black truncate capitalize ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{displayName}</div>
+                      <div className="text-[10px] text-gray-500 font-bold truncate mt-1">{displayEmail}</div>
+                      <label className="inline-flex items-center gap-2 mt-3 px-3 py-2 rounded-xl bg-[#008234]/10 text-[#008234] hover:bg-[#008234]/20 cursor-pointer text-[10px] font-black uppercase tracking-widest transition-all">
+                        <UploadCloud size={14} />
+                        Ganti Foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            resetProfileFeedback();
+                            setSelectedAvatarFile(e.target.files?.[0] || null);
+                          }}
+                        />
+                      </label>
+                      {selectedAvatarFile && (
+                        <p className="text-[9px] text-emerald-400 font-bold mt-2 truncate">
+                          Foto baru: {selectedAvatarFile.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {profileError && (
+                    <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-bold">
+                      {profileError}
+                    </div>
+                  )}
+                  {profileSuccess && (
+                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold">
+                      {profileSuccess}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 ml-1">Nama Lengkap</label>
+                    <input
+                      type="text"
+                      value={profileForm.full_name}
+                      onChange={(e) => {
+                        resetProfileFeedback();
+                        setProfileForm((prev) => ({ ...prev, full_name: e.target.value }));
+                      }}
+                      className={`w-full p-4 rounded-2xl border text-sm font-bold focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                      placeholder="Nama lengkap"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 ml-1">Nomor WhatsApp</label>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => {
+                        resetProfileFeedback();
+                        setProfileForm((prev) => ({ ...prev, phone: e.target.value }));
+                      }}
+                      className={`w-full p-4 rounded-2xl border text-sm font-bold focus:outline-none focus:border-[#008234] ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                      placeholder="08xxxxxxxxxx"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 ml-1">Email</label>
+                      <input
+                        type="email"
+                        value={displayEmail}
+                        readOnly
+                        className={`w-full p-4 rounded-2xl border text-xs font-bold cursor-not-allowed opacity-70 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 ml-1">Role / Jabatan</label>
+                      <input
+                        type="text"
+                        value={displayRole}
+                        readOnly
+                        className={`w-full p-4 rounded-2xl border text-xs font-black uppercase tracking-widest cursor-not-allowed opacity-80 ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-[#008234]' : 'bg-gray-100 border-gray-200 text-[#008234]'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`p-3 rounded-2xl text-[10px] font-bold leading-relaxed ${isDarkMode ? 'bg-amber-500/10 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
+                    Email dan role hanya dapat diubah oleh koordinator/admin agar akses tim tetap aman.
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="w-full py-4 rounded-2xl bg-[#008234] hover:bg-[#006b2a] disabled:opacity-60 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 flex items-center justify-center gap-2"
+                  >
+                    {profileSaving ? <Loader2 className="animate-spin" size={16} /> : <CheckSquare size={15} />}
+                    Simpan Profil
+                  </button>
+                </form>
               </div>
             </div>
           )}
