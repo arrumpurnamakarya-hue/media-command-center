@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 import { createClient } from '@supabase/supabase-js';
-import serviceAccount from './serviceAccount.json';
 
 export const runtime = 'nodejs';
 
@@ -11,12 +10,6 @@ type SendNotificationBody = {
   body?: unknown;
   token?: unknown;
   tokens?: unknown;
-};
-
-type ServiceAccountJson = {
-  project_id?: string;
-  client_email?: string;
-  private_key?: string;
 };
 
 type FailedToken = {
@@ -32,11 +25,11 @@ function getSupabase() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL belum diisi di .env.local');
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL belum diisi');
   }
 
   if (!supabaseServiceKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY belum diisi di .env.local');
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY belum diisi');
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
@@ -47,6 +40,10 @@ function getSupabase() {
   });
 }
 
+function normalizePrivateKey(privateKey: string) {
+  return privateKey.replace(/\\n/g, '\n');
+}
+
 function getFirebaseApp() {
   const existingApp = admin.apps.find((app) => app?.name === FIREBASE_APP_NAME);
 
@@ -54,25 +51,27 @@ function getFirebaseApp() {
     return existingApp;
   }
 
-  const account = serviceAccount as ServiceAccountJson;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  if (!account.project_id || !account.client_email || !account.private_key) {
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      'serviceAccount.json belum valid. Pastikan berisi project_id, client_email, dan private_key.'
+      'Firebase credential belum lengkap. Isi FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, dan FIREBASE_PRIVATE_KEY di Environment Variables.'
     );
   }
 
-  console.log('Initializing Firebase Admin from serviceAccount.json:', {
-    projectId: account.project_id,
-    clientEmail: account.client_email,
+  console.log('Initializing Firebase Admin from ENV:', {
+    projectId,
+    clientEmail,
   });
 
   return admin.initializeApp(
     {
       credential: admin.credential.cert({
-        projectId: account.project_id,
-        clientEmail: account.client_email,
-        privateKey: account.private_key.replace(/\\n/g, '\n'),
+        projectId,
+        clientEmail,
+        privateKey: normalizePrivateKey(privateKey),
       }),
     },
     FIREBASE_APP_NAME
@@ -141,7 +140,6 @@ async function sendMulticastNotifications(
   const chunkSize = 500;
   let successCount = 0;
   let failureCount = 0;
-
   const failedTokens: FailedToken[] = [];
 
   for (let start = 0; start < tokens.length; start += chunkSize) {
