@@ -59,6 +59,9 @@ export default function CommandCenter() {
   const [activeLang, setActiveLang] = useState('ID');
   const langRef = useRef<HTMLDivElement>(null);
 
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -80,6 +83,7 @@ export default function CommandCenter() {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifications(false);
       if (langRef.current && !langRef.current.contains(event.target as Node)) setShowLangMenu(false);
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setShowProfileMenu(false);
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) setShowSearch(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -359,17 +363,86 @@ export default function CommandCenter() {
               )}
             </div>
 
-            <div className={`flex items-center md:space-x-3 p-1 md:pl-2 md:py-1 md:pr-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
-                {user?.email ? user.email.charAt(0) : 'A'}
-              </div>
-              <span className={`text-xs font-bold hidden sm:block pr-1 capitalize ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
-              </span>
-              
-              <button onClick={signOut} className={`hidden md:block ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
-                <LogOut size={14} />
+            <div ref={profileRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className={`flex items-center md:space-x-3 p-1 md:pl-2 md:py-1 md:pr-3 rounded-2xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 hover:border-[#008234]/50' : 'bg-gray-50 border-gray-200 hover:border-[#008234]/50'}`}
+                aria-label="Buka menu profil"
+              >
+                <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
+                  {user?.email ? user.email.charAt(0) : 'A'}
+                </div>
+                <span className={`text-xs font-bold hidden sm:block pr-1 capitalize ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                  {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
+                </span>
               </button>
+
+              {showProfileMenu && (
+                <div className={`fixed left-4 right-4 top-[88px] z-[9999] rounded-2xl shadow-2xl border overflow-hidden animate-fadeIn md:absolute md:left-auto md:right-0 md:top-full md:mt-3 md:w-72 ${isDarkMode ? 'bg-[#161920] border-gray-800' : 'bg-white border-gray-200'}`}>
+                  <div className="p-4 border-b border-gray-500/20 bg-black/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#008234] rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-sm uppercase">
+                        {user?.email ? user.email.charAt(0) : 'A'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className={`text-xs font-black truncate capitalize ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
+                        </div>
+                        <div className="text-[9px] text-gray-500 font-bold truncate mt-0.5">
+                          {user?.email || 'admin@commandcenter.local'}
+                        </div>
+                        <div className="text-[8px] font-black uppercase tracking-widest text-[#008234] mt-1">
+                          Mediacenter
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-2">
+                    <div className="md:hidden grid grid-cols-2 gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => { setActiveLang(activeLang === 'ID' ? 'EN' : 'ID'); setShowProfileMenu(false); }}
+                        className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] text-gray-300 hover:bg-gray-800' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <Languages size={14} /> {activeLang}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsDarkMode(!isDarkMode); setShowProfileMenu(false); }}
+                        className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isDarkMode ? 'bg-[#0b0d10] text-amber-400 hover:bg-gray-800' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        {isDarkMode ? <Sun size={14} /> : <Moon size={14} />} Tema
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        alert('Fitur edit profil dan upload foto akan ditambahkan di tahap register tim.');
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-bold transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-800/70' : 'text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      <span>Edit Profil</span>
+                      <ChevronRight size={14} className="text-gray-500" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        signOut();
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-3 rounded-xl text-xs font-black transition-all ${isDarkMode ? 'text-rose-400 hover:bg-rose-500/10' : 'text-rose-500 hover:bg-rose-50'}`}
+                    >
+                      <span className="flex items-center gap-2"><LogOut size={14} /> Keluar</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
