@@ -46,6 +46,15 @@ export interface ContentPlan {
   web_engagement?: number;
 }
 
+type UserProfile = {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  avatar_url?: string | null;
+  status?: string | null;
+};
+
 export default function CommandCenter() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -79,6 +88,8 @@ export default function CommandCenter() {
   // STATE UNTUK EDIT DATA LANGSUNG DI DASHBOARD (TOP 5)
   const [editingContent, setEditingContent] = useState<{ data: ContentPlan, engKey: keyof ContentPlan } | null>(null);
 
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifications(false);
@@ -89,6 +100,30 @@ export default function CommandCenter() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) {
+        setProfile(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone, role, avatar_url, status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Gagal mengambil profil:', error);
+        return;
+      }
+
+      setProfile(data);
+    };
+
+    fetchProfile();
+  }, [user?.id]);
 
   const fetchContentsAndStats = async () => {
     try {
@@ -195,6 +230,13 @@ export default function CommandCenter() {
   };
 
   const formatNumberMax = (num: number) => num > 9999 ? `${(num/1000).toFixed(1)}K` : num.toLocaleString('id-ID');
+
+  const fallbackName = user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin';
+  const displayName = profile?.full_name || fallbackName;
+  const displayEmail = profile?.email || user?.email || 'admin@commandcenter.local';
+  const displayRole = profile?.role || 'Mediacenter';
+  const displayInitial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = profile?.avatar_url || '';
 
   const PlatformHistoryTable = ({ title, icon, platformKey, engagementKey }: { title: string, icon: React.ReactNode, platformKey: string, engagementKey: keyof ContentPlan }) => {
     const platformContents = postedContents.filter(c => c.platforms?.includes(platformKey.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
@@ -370,11 +412,19 @@ export default function CommandCenter() {
                 className={`flex items-center md:space-x-3 p-1 md:pl-2 md:py-1 md:pr-3 rounded-2xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 hover:border-[#008234]/50' : 'bg-gray-50 border-gray-200 hover:border-[#008234]/50'}`}
                 aria-label="Buka menu profil"
               >
-                <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
-                  {user?.email ? user.email.charAt(0) : 'A'}
-                </div>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-7 h-7 rounded-xl object-cover border border-emerald-500/30 shadow-sm"
+                  />
+                ) : (
+                  <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
+                    {displayInitial}
+                  </div>
+                )}
                 <span className={`text-xs font-bold hidden sm:block pr-1 capitalize ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                  {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
+                  {displayName}
                 </span>
               </button>
 
@@ -382,18 +432,26 @@ export default function CommandCenter() {
                 <div className={`fixed left-4 right-4 top-[88px] z-[9999] rounded-2xl shadow-2xl border overflow-hidden animate-fadeIn md:absolute md:left-auto md:right-0 md:top-full md:mt-3 md:w-72 ${isDarkMode ? 'bg-[#161920] border-gray-800' : 'bg-white border-gray-200'}`}>
                   <div className="p-4 border-b border-gray-500/20 bg-black/10">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#008234] rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-sm uppercase">
-                        {user?.email ? user.email.charAt(0) : 'A'}
-                      </div>
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={displayName}
+                          className="w-10 h-10 rounded-2xl object-cover border border-emerald-500/30 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-[#008234] rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-sm uppercase">
+                          {displayInitial}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <div className={`text-xs font-black truncate capitalize ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
+                          {displayName}
                         </div>
                         <div className="text-[9px] text-gray-500 font-bold truncate mt-0.5">
-                          {user?.email || 'admin@commandcenter.local'}
+                          {displayEmail}
                         </div>
                         <div className="text-[8px] font-black uppercase tracking-widest text-[#008234] mt-1">
-                          Mediacenter
+                          {displayRole}
                         </div>
                       </div>
                     </div>
