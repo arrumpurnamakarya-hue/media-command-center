@@ -2,11 +2,15 @@
   "name": "mediacenter-pkb",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "desktop": "electron .",
+    "desktop:prod": "cross-env APP_URL=https://media-command-center-plum.vercel.app electron .",
+    "dist:win": "electron-builder --win nsis"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -29,10 +33,34 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.0",
+    "cross-env": "^10.1.0",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.19",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.mediacenter.commandcenter",
+    "productName": "Media Command Center",
+    "directories": {
+      "output": "desktop-dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Media Command Center"
+    }
   }
 }
