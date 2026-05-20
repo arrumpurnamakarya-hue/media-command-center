@@ -1,6 +1,7 @@
 import './globals.css';
 import { Inter, Roboto } from 'next/font/google';
 import { AuthProvider } from './contexts/AuthContext';
+import PushSetup from './PushSetup';
 
 // Inter untuk antarmuka teks biasa (UI)
 const inter = Inter({ 
@@ -32,6 +33,9 @@ export default function RootLayout({
     <html lang="id" className={`${inter.variable} ${roboto.variable}`}>
       {/* font-sans otomatis memicu Inter untuk semua teks standar */}
       <body className="font-sans bg-[#0b0d10] text-white antialiased">
+        {/* MENYALAKAN MESIN NOTIFIKASI */}
+        <PushSetup />
+        
         <AuthProvider>
           {children}
         </AuthProvider>

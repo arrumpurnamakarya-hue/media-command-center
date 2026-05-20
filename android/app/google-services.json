@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "519925236479",
+    "project_id": "media-center-pkb",
+    "storage_bucket": "media-center-pkb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:519925236479:android:54eeb7d483cf20b42082ca",
+        "android_client_info": {
+          "package_name": "com.pkbgarut.commandcenter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcKg8X35a9Sz2hXKlw1ag6L6Qoj-goFSo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

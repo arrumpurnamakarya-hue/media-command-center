@@ -153,6 +153,25 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
         const { error } = await supabase.from('contents').insert([payload]);
         if (error) throw error;
       }
+
+      try {
+        await fetch('/api/send-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Update Jadwal Media Center!',
+            // Mengambil judul konten langsung dari form yang Anda ketik
+            body: `Konten baru: ${formData.title} telah ditambahkan ke jadwal.`, 
+          }),
+        });
+        console.log('Notifikasi berhasil dikirim ke tim!');
+      } catch (notifError) {
+        console.error('Gagal memicu notifikasi:', notifError);
+      }
+      // --- AKHIR KODE NOTIFIKASI ---
+
       await fetchPlans();
       if (onPlanAdded) onPlanAdded();
       handleCloseModal();
@@ -174,6 +193,7 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
       alert("Error deleting data: " + error.message);
     }
   };
+  
 
   // --- LOGIKA DRAG AND DROP ---
   const handleDragStart = (e: React.DragEvent, item: ContentPlan) => {
