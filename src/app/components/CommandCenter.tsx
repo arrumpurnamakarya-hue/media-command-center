@@ -232,6 +232,15 @@ export default function CommandCenter() {
   return (
     <div className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${isDarkMode ? 'bg-[#0b0d10] text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
       
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-[35] bg-black/60 backdrop-blur-[2px] md:hidden"
+        />
+      )}
+
       <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} border-r flex flex-col transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 shadow-sm`}>
         <div className={`flex items-center space-x-3 px-6 py-6 border-b border-gray-100/10 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           <img src="/logo.png" alt="Logo PKB" className="w-10 h-10 object-contain drop-shadow-lg" />
@@ -254,8 +263,21 @@ export default function CommandCenter() {
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
-        <header className={`h-24 flex items-center justify-between px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
-          <div className="md:hidden"><Menu onClick={() => setMobileMenuOpen(true)} size={20} className="cursor-pointer" /></div>
+        <header className={`h-20 md:h-24 flex items-center justify-between px-4 md:px-8 border-b ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} sticky top-0 z-30 transition-colors`}>
+          <div className="md:hidden flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className={`p-2.5 rounded-xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-200' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              aria-label="Buka menu"
+            >
+              <Menu size={19} />
+            </button>
+            <div className="min-w-0">
+              <h2 className={`text-[11px] font-black uppercase tracking-wider truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Command Center</h2>
+              <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest truncate">Media Strategist</p>
+            </div>
+          </div>
           
           <div ref={searchRef} className="relative hidden md:block w-80">
             <div className={`flex items-center rounded-2xl px-4 py-2 border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 focus-within:border-[#008234]' : 'bg-gray-50 border-gray-200 focus-within:border-[#008234]'}`}>
@@ -284,8 +306,8 @@ export default function CommandCenter() {
             )}
           </div>
 
-          <div className="flex items-center gap-6">
-            <div ref={langRef} className="relative">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div ref={langRef} className="relative hidden md:block">
               <button onClick={() => setShowLangMenu(!showLangMenu)} className={`p-2.5 flex items-center gap-2 rounded-xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
                 <Languages size={15} /> <span className="text-[10px] font-black">{activeLang}</span>
               </button>
@@ -297,7 +319,7 @@ export default function CommandCenter() {
               )}
             </div>
 
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-2.5 rounded-xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-amber-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`hidden md:flex p-2.5 rounded-xl border transition-all ${isDarkMode ? 'bg-[#0b0d10] border-gray-800 text-amber-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
               {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
@@ -308,12 +330,12 @@ export default function CommandCenter() {
               </button>
 
               {showNotifications && (
-                <div className={`absolute right-0 mt-3 w-80 md:w-96 rounded-2xl shadow-2xl border overflow-hidden z-50 animate-fadeIn ${isDarkMode ? 'bg-[#161920] border-gray-800' : 'bg-white border-gray-200'}`}>
+                <div className={`fixed left-4 right-4 top-[88px] z-[9999] max-h-[70dvh] rounded-2xl shadow-2xl border overflow-hidden animate-fadeIn md:absolute md:left-auto md:right-0 md:top-full md:mt-3 md:w-96 md:max-h-none ${isDarkMode ? 'bg-[#161920] border-gray-800' : 'bg-white border-gray-200'}`}>
                   <div className="p-4 border-b border-gray-500/20 flex justify-between items-center bg-black/10">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Papan Peringatan Redaksi</span>
                     <Activity size={14} className="text-emerald-500" />
                   </div>
-                  <div className="p-4 space-y-5 max-h-80 overflow-y-auto custom-scrollbar">
+                  <div className="p-4 space-y-5 max-h-[55dvh] md:max-h-80 overflow-y-auto custom-scrollbar">
                     <div>
                       <div className="text-gray-500 text-[9px] font-black uppercase tracking-widest mb-2 border-b border-gray-500/20 pb-1">Antrean Tayang Terdekat</div>
                       {statusCounts.ready.length === 0 ? <div className="text-gray-600 text-[10px] font-bold">Semua naskah telah mengudara.</div> : statusCounts.ready.map(c => (
@@ -337,7 +359,7 @@ export default function CommandCenter() {
               )}
             </div>
 
-            <div className={`flex items-center space-x-3 pl-2 py-1 pr-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`flex items-center md:space-x-3 p-1 md:pl-2 md:py-1 md:pr-3 rounded-2xl border ${isDarkMode ? 'bg-[#0b0d10] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
               <div className="w-7 h-7 bg-[#008234] rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm uppercase">
                 {user?.email ? user.email.charAt(0) : 'A'}
               </div>
@@ -345,7 +367,7 @@ export default function CommandCenter() {
                 {user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ') : 'Admin'}
               </span>
               
-              <button onClick={signOut} className={`ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
+              <button onClick={signOut} className={`hidden md:block ml-2 p-2 rounded-xl transition-all ${isDarkMode ? 'bg-[#12151a] hover:bg-rose-500/10 text-rose-500' : 'bg-white hover:bg-rose-50 text-rose-500'}`} title="Keluar">
                 <LogOut size={14} />
               </button>
             </div>
