@@ -4,8 +4,46 @@ import { useEffect } from 'react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
-// Mengimpor file Supabase
-import { supabase } from './lib/supabaseClient';
+async function setupPush() {
+  try {
+    const permission = await PushNotifications.requestPermissions();
+    if (permission.receive === 'granted') {
+      await PushNotifications.register();
+    }
+
+    PushNotifications.addListener('registration', async (token) => {
+      try {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+        const response = await fetch(`${apiBaseUrl}/api/save-fcm-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            token: token.value,
+            device_name: 'Android Device',
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Gagal menyimpan token FCM');
+        }
+
+        console.log('Token FCM berhasil dikirim ke backend');
+      } catch (error) {
+        console.error('Gagal menyimpan token FCM ke backend:', error);
+      }
+    });
+
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Notifikasi masuk: ', notification.title);
+    });
+  } catch (error) {
+    console.error('Error setup notifikasi:', error);
+  }
+}
 
 export default function PushSetup() {
   useEffect(() => {
@@ -13,42 +51,6 @@ export default function PushSetup() {
       setupPush();
     }
   }, []);
-
-  const setupPush = async () => {
-    try {
-      const permission = await PushNotifications.requestPermissions();
-      if (permission.receive === 'granted') {
-        await PushNotifications.register();
-      }
-
-      PushNotifications.addListener('registration', async (token) => {
-        // --- KODE DETEKTIF ---
-        try {
-          const { error } = await supabase
-            .from('fcm_tokens')
-            .upsert({ token: token.value }, { onConflict: 'token' });
-          
-          if (error) {
-            // Memaksa HP menampilkan alasan kenapa Supabase menolak datanya
-            alert('Gagal simpan ke Supabase: ' + error.message); 
-          } else {
-            // Memunculkan pesan sukses di layar HP
-            alert('Sukses! Token berhasil masuk ke Database!'); 
-          }
-        } catch (err: any) {
-          alert('Error Jaringan/Kode: ' + err.message);
-        }
-        // ----------------------
-      });
-
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Notifikasi masuk: ', notification.title);
-      });
-      
-    } catch (error) {
-      console.error('Error setup notifikasi:', error);
-    }
-  };
 
   return null;
 }

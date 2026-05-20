@@ -39,8 +39,7 @@ export default function LoginPage() {
               src="/logo.png"         // ⬅️ Sesuaikan path logo Anda jika di folder lain, contoh: /images/logo.png
               alt="Logo Resmi" 
               fill 
-              className="object-contain"
-              priority
+              unoptimized
             />
           </div>
           <div className="space-y-1">

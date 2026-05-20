@@ -162,8 +162,7 @@ export default function PlanningForm({ isDarkMode = true, onPlanAdded }: Plannin
           },
           body: JSON.stringify({
             title: 'Update Jadwal Media Center!',
-            // Mengambil judul konten langsung dari form yang Anda ketik
-            body: `Konten baru: ${formData.title} telah ditambahkan ke jadwal.`, 
+            message: `Konten baru: ${formData.title} telah ditambahkan ke jadwal.`,
           }),
         });
         console.log('Notifikasi berhasil dikirim ke tim!');
