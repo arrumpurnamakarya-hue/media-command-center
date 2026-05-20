@@ -1,9 +1,13 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pkbgarut.commandcenter',
-  appName: 'Command Center PKB',
-  webDir: 'out' // <-- UBAH BAGIAN INI DARI 'public' MENJADI 'out'
+  appId: 'com.mediacenter.commandcenter',
+  appName: 'Media Command Center',
+  webDir: 'out',
+  server: {
+    url: 'https://media-command-center-plum.vercel.app',
+    cleartext: false,
+  },
 };
 
 export default config;
