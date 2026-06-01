@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { 
-  LayoutDashboard, UploadCloud, CalendarDays, FileText, Menu, X, 
+  LayoutDashboard, UploadCloud, CalendarDays, FileText, Menu, X, FolderOpen, Plug,
   Globe, Sparkles, Sun, Moon, LogOut, Bell, Search, Loader2, CheckSquare,
   Eye, MousePointer2, Send, ChevronRight, Languages, Flame, Activity, TrendingUp, TrendingDown, Edit2, Trash2
 } from 'lucide-react';
@@ -14,6 +14,9 @@ import RecapForm from './RecapForm';
 import Reports from './Reports';
 import PlanningForm from './PlanningForm';
 import Jobdesk from './Jobdesk';
+import DesktopNotificationBridge from './DesktopNotificationBridge';
+import ContentLibrary from './ContentLibrary';
+import PlatformIntegration from './PlatformIntegration';
 
 const BrandIcons = {
   Web: () => <Globe className="w-5 h-5 text-blue-400" />,
@@ -22,6 +25,60 @@ const BrandIcons = {
   TikTok: () => <svg className="w-5 h-5 text-rose-600 fill-current" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>,
   X: () => <svg className="w-4 h-4 text-gray-200 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
   YT: () => <svg className="w-5 h-5 text-[#FF0000] fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+};
+
+const META_DATA_START_DATE = '2026-04-06';
+const META_TIMEZONE = 'Asia/Jakarta';
+const OFFICIAL_API_SOURCES = ['meta_api', 'tiktok_api', 'x_api', 'youtube_api'];
+const SOCIAL_PLATFORM_VALUES = [
+  'FB', 'fb', 'FACEBOOK', 'Facebook', 'facebook',
+  'IG', 'ig', 'INSTAGRAM', 'Instagram', 'instagram',
+  'TIKTOK', 'TikTok', 'tiktok',
+  'X', 'x', 'TWITTER', 'Twitter', 'twitter', 'X/Twitter', 'X / Twitter',
+  'YT', 'yt', 'YOUTUBE', 'YouTube', 'youtube', 'YOUTUBE SHORTS', 'YouTube Shorts', 'youtube shorts', 'YOUTUBE_SHORTS', 'YT SHORTS', 'YT Shorts',
+];
+
+type SocialPlatformKey = 'fb' | 'ig' | 'tiktok' | 'x' | 'yt';
+
+const getSocialPlatformKey = (platform?: string | null): SocialPlatformKey | null => {
+  const cleanPlatform = String(platform || '').trim().toUpperCase();
+
+  if (cleanPlatform === 'FB' || cleanPlatform === 'FACEBOOK') return 'fb';
+  if (cleanPlatform === 'IG' || cleanPlatform === 'INSTAGRAM') return 'ig';
+  if (cleanPlatform === 'TIKTOK') return 'tiktok';
+  if (cleanPlatform === 'X' || cleanPlatform === 'TWITTER' || cleanPlatform === 'X/TWITTER' || cleanPlatform === 'X / TWITTER') return 'x';
+  if (cleanPlatform === 'YT' || cleanPlatform === 'YOUTUBE' || cleanPlatform === 'YOUTUBE SHORTS' || cleanPlatform === 'YOUTUBE_SHORTS' || cleanPlatform === 'YT SHORTS') return 'yt';
+
+  return null;
+};
+
+const getMetricViewsValue = (row: PlatformMetricRow) => Number(row.impressions || 0);
+const getMetricReachValue = (row: PlatformMetricRow) => Number(row.reach || 0);
+
+const getDateInTimezone = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: META_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find(part => part.type === 'year')?.value || '2026';
+  const month = parts.find(part => part.type === 'month')?.value || '01';
+  const day = parts.find(part => part.type === 'day')?.value || '01';
+
+  return `${year}-${month}-${day}`;
+};
+
+const getMetaDataRange = () => {
+  const todayDate = getDateInTimezone();
+  const start = new Date(`${META_DATA_START_DATE}T00:00:00+07:00`);
+  const end = new Date(`${todayDate}T23:59:59.999+07:00`);
+
+  return {
+    todayDate,
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
 };
 
 export interface ContentPlan {
@@ -60,6 +117,34 @@ type ProfileFormState = {
   phone: string;
 };
 
+type PlatformMetricRow = {
+  platform?: string | null;
+  source?: string | null;
+  metric_date?: string | null;
+  reach?: number | string | null;
+  impressions?: number | string | null;
+  engagement?: number | string | null;
+  followers?: number | string | null;
+  posts_count?: number | string | null;
+};
+
+type SocialPostInsightRow = {
+  id?: string | null;
+  platform?: string | null;
+  source?: string | null;
+  external_post_id?: string | null;
+  published_url?: string | null;
+  post_message?: string | null;
+  post_created_time?: string | null;
+  views?: number | string | null;
+  reach?: number | string | null;
+  impressions?: number | string | null;
+  engagement?: number | string | null;
+  likes?: number | string | null;
+  comments?: number | string | null;
+  shares?: number | string | null;
+};
+
 export default function CommandCenter() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -85,8 +170,14 @@ export default function CommandCenter() {
   const [wpCount, setWpCount] = useState(0);
   
   const [globalViews, setGlobalViews] = useState(0);
+  const [globalReach, setGlobalReach] = useState(0);
   const [globalEng, setGlobalEng] = useState(0);
   const [platformStats, setPlatformStats] = useState({ web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 });
+  const [platformMetricRows, setPlatformMetricRows] = useState<PlatformMetricRow[]>([]);
+  const [facebookPostInsights, setFacebookPostInsights] = useState<SocialPostInsightRow[]>([]);
+  const [instagramPostInsights, setInstagramPostInsights] = useState<SocialPostInsightRow[]>([]);
+  const [tiktokPostInsights, setTikTokPostInsights] = useState<SocialPostInsightRow[]>([]);
+  const [socialPostCount, setSocialPostCount] = useState(0);
 
   const [selectedPlatformModal, setSelectedPlatformModal] = useState<{ title: string, key: string, engKey: keyof ContentPlan, icon: React.ReactNode } | null>(null);
   
@@ -100,6 +191,15 @@ export default function CommandCenter() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get('tab');
+
+    if (requestedTab === 'integrations') {
+      setActiveTab('integrations');
+    }
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -150,27 +250,109 @@ export default function CommandCenter() {
   const fetchContentsAndStats = async () => {
     try {
       setLoadingContents(true);
+      const metaRange = getMetaDataRange();
       const { data: rawContents } = await supabase.from('contents').select('*');
-      
-      let totalV = 0; let totalE = 0;
-      let pStats = { web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 };
+      const { data: rawPlatformMetrics, error: platformMetricsError } = await supabase
+        .from('platform_metrics')
+        .select('platform, source, metric_date, reach, impressions, engagement, followers, posts_count')
+        .in('source', OFFICIAL_API_SOURCES)
+        .in('platform', SOCIAL_PLATFORM_VALUES)
+        .gte('metric_date', META_DATA_START_DATE)
+        .lte('metric_date', metaRange.todayDate)
+        .order('metric_date', { ascending: true });
+      const { data: rawFacebookPosts, error: facebookPostsError } = await supabase
+        .from('post_insights')
+        .select('id, platform, source, external_post_id, published_url, post_message, post_created_time, reach, impressions, engagement, likes, comments, shares')
+        .eq('platform', 'FB')
+        .eq('source', 'meta_api')
+        .gte('post_created_time', metaRange.startIso)
+        .lte('post_created_time', metaRange.endIso)
+        .order('engagement', { ascending: false })
+        .limit(5);
+      const { data: rawInstagramPosts, error: instagramPostsError } = await supabase
+        .from('post_insights')
+        .select('id, platform, source, external_post_id, published_url, post_message, post_created_time, views, reach, impressions, engagement, likes, comments, shares')
+        .eq('platform', 'IG')
+        .eq('source', 'meta_api')
+        .gte('post_created_time', metaRange.startIso)
+        .lte('post_created_time', metaRange.endIso)
+        .order('engagement', { ascending: false })
+        .limit(5);
+      const { data: rawTikTokPosts, error: tiktokPostsError } = await supabase
+        .from('post_insights')
+        .select('id, platform, source, external_post_id, published_url, post_message, post_created_time, views, reach, impressions, engagement, likes, comments, shares')
+        .eq('platform', 'TIKTOK')
+        .eq('source', 'tiktok_api')
+        .gte('post_created_time', metaRange.startIso)
+        .lte('post_created_time', metaRange.endIso)
+        .order('engagement', { ascending: false })
+        .limit(5);
+      const { count: rawSocialPostCount, error: socialPostCountError } = await supabase
+        .from('post_insights')
+        .select('id', { count: 'exact', head: true })
+        .in('platform', SOCIAL_PLATFORM_VALUES)
+        .in('source', OFFICIAL_API_SOURCES)
+        .gte('post_created_time', metaRange.startIso)
+        .lte('post_created_time', metaRange.endIso);
 
+      const metricRows = platformMetricsError
+        ? []
+        : ((rawPlatformMetrics || []) as PlatformMetricRow[]);
+      const fbPostRows = facebookPostsError
+        ? []
+        : ((rawFacebookPosts || []) as SocialPostInsightRow[]);
+      const igPostRows = instagramPostsError
+        ? []
+        : ((rawInstagramPosts || []) as SocialPostInsightRow[]);
+      const tiktokPostRows = tiktokPostsError
+        ? []
+        : ((rawTikTokPosts || []) as SocialPostInsightRow[]);
+
+      if (platformMetricsError) {
+        console.warn('Platform metrics API resmi belum tersedia. Dashboard menampilkan angka 0:', platformMetricsError.message);
+      }
+
+      if (facebookPostsError) {
+        console.warn('Post insights Facebook Meta API belum tersedia. Dashboard menampilkan empty state:', facebookPostsError.message);
+      }
+
+      if (instagramPostsError) {
+        console.warn('Post insights Instagram Meta API belum tersedia. Dashboard menampilkan empty state:', instagramPostsError.message);
+      }
+
+      if (tiktokPostsError) {
+        console.warn('Post insights TikTok API belum tersedia. Dashboard menampilkan empty state:', tiktokPostsError.message);
+      }
+
+      if (socialPostCountError) {
+        console.warn('Total postingan medsos API resmi belum tersedia. Dashboard menampilkan angka 0:', socialPostCountError.message);
+      }
+
+      setPlatformMetricRows(metricRows);
+      setFacebookPostInsights(fbPostRows);
+      setInstagramPostInsights(igPostRows);
+      setTikTokPostInsights(tiktokPostRows);
+      setSocialPostCount(socialPostCountError ? 0 : Number(rawSocialPostCount || 0));
+      
       if (rawContents) {
-        rawContents.forEach(c => {
-           totalV += Number(c.views || 0);
-           totalE += Number(c.engagement || 0);
-           pStats.web += Number(c.web_views || 0);
-           pStats.ig += Number(c.ig_engagement || 0);
-           pStats.fb += Number(c.fb_engagement || 0);
-           pStats.tiktok += Number(c.tiktok_engagement || 0);
-           pStats.x += Number(c.x_engagement || 0);
-           pStats.yt += Number(c.yt_engagement || 0);
-        });
-        
         const sortedContents = rawContents.sort((a, b) => new Date(b.publish_date || '').getTime() - new Date(a.publish_date || '').getTime());
         setAllContents(sortedContents);
       }
-      setGlobalViews(totalV); setGlobalEng(totalE); setPlatformStats(pStats);
+
+      const pStats = { web: 0, ig: 0, fb: 0, tiktok: 0, x: 0, yt: 0 };
+      metricRows.forEach(row => {
+        const platformKey = getSocialPlatformKey(row.platform);
+        const engagement = Number(row.engagement || 0);
+
+        if (platformKey) pStats[platformKey] += engagement;
+      });
+
+      const totalV = metricRows.reduce((sum, row) => sum + getMetricViewsValue(row), 0);
+      const totalR = metricRows.reduce((sum, row) => sum + getMetricReachValue(row), 0);
+      const metricEngagementTotal = metricRows.reduce((sum, row) => sum + Number(row.engagement || 0), 0);
+      const totalE = metricEngagementTotal;
+
+      setGlobalViews(totalV); setGlobalReach(totalR); setGlobalEng(totalE); setPlatformStats(pStats);
     } catch (err) { console.error("Error fetching data:", err); } finally {
       setLoadingContents(false);
       try {
@@ -228,22 +410,36 @@ export default function CommandCenter() {
   };
 
   const dynamicChartData = useMemo(() => {
+    const metricsByDate = platformMetricRows.reduce((acc, row) => {
+      if (!row.metric_date) return acc;
+
+      if (!acc[row.metric_date]) {
+        acc[row.metric_date] = { engagement: 0, reach: 0 };
+      }
+
+      acc[row.metric_date].engagement += Number(row.engagement || 0);
+      acc[row.metric_date].reach += getMetricReachValue(row);
+      return acc;
+    }, {} as Record<string, { engagement: number; reach: number }>);
+
     const data = [];
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const dayLabel = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-
-      const dayContents = allContents.filter(c => c.publish_date === dateStr);
-      const eng = dayContents.reduce((sum, c) => sum + Number(c.engagement || 0), 0);
-      const views = dayContents.reduce((sum, c) => sum + Number(c.views || 0), 0);
-      data.push({ day: dayLabel, eng, views });
+      const metric = metricsByDate[dateStr];
+      const eng = Number(metric?.engagement || 0);
+      const reach = Number(metric?.reach || 0);
+      data.push({ day: dayLabel, eng, reach });
     }
     return data;
-  }, [allContents]);
+  }, [platformMetricRows]);
 
-  const postedContents = allContents.filter(c => c.pub_status === 'Posted' || c.pillar === 'Imported Data');
+  const dashboardContentPool = allContents.filter(c => c.pillar !== 'Imported Data');
+  const postedContents = dashboardContentPool.filter(c => c.pub_status === 'Posted');
+  const totalDashboardPosts = socialPostCount;
+  const totalDashboardPostsLabel = 'Total Postingan Medsos';
   const upcomingRunway = allContents.filter(c => (c.prod_status === 'Ready to Post' || c.prod_status === 'Editing/Design') && c.pub_status !== 'Posted').slice(0, 4);
 
   const statusCounts = {
@@ -345,7 +541,91 @@ export default function CommandCenter() {
   };
 
   const PlatformHistoryTable = ({ title, icon, platformKey, engagementKey }: { title: string, icon: React.ReactNode, platformKey: string, engagementKey: keyof ContentPlan }) => {
-    const platformContents = postedContents.filter(c => c.platforms?.includes(platformKey.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[engagementKey]) > 0)).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
+    const isApiPostTable = platformKey === 'fb' || platformKey === 'ig' || platformKey === 'tiktok';
+    const apiPostInsights = platformKey === 'fb'
+      ? facebookPostInsights
+      : platformKey === 'ig' ? instagramPostInsights : tiktokPostInsights;
+    const apiSourceLabel = platformKey === 'tiktok' ? 'TIKTOK API' : 'META API';
+
+    if (isApiPostTable) {
+      return (
+        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
+          <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
+            <div className="flex items-center gap-3">
+              {icon}
+              <div>
+                <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
+                <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[8px] font-black uppercase tracking-widest">
+                SUMBER DATA: {apiSourceLabel}
+              </span>
+              <Flame size={16} className="text-emerald-500" />
+            </div>
+          </div>
+          <div className="flex-1">
+            {apiPostInsights.length === 0 ? <div className="text-center py-8 text-gray-500 text-xs font-bold uppercase">Belum ada data API</div> : (
+              <div className="space-y-4">
+                {apiPostInsights.map((post) => {
+                  const postDate = post.post_created_time
+                    ? new Date(post.post_created_time).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '-';
+
+                  return (
+                    <div key={post.id || post.external_post_id || post.post_created_time || post.post_message || 'fb-post'} className="flex flex-col border-b border-gray-500/5 pb-3 last:border-0">
+                      <div className={`text-[11px] font-bold line-clamp-2 mb-1.5 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+                        {post.post_message || '(Tanpa caption)'}
+                      </div>
+                      <div className="flex justify-between items-center gap-3 text-[9px] text-gray-500">
+                        <span className="font-mono whitespace-nowrap">{postDate}</span>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <span>Like {formatNumberMax(Number(post.likes || 0))}</span>
+                          <span>Com {formatNumberMax(Number(post.comments || 0))}</span>
+                          {platformKey === 'fb' && <span>Share {formatNumberMax(Number(post.shares || 0))}</span>}
+                          {platformKey === 'tiktok' && <span>View {formatNumberMax(Number(post.views || post.impressions || 0))}</span>}
+                          {platformKey === 'tiktok' && <span>Share {formatNumberMax(Number(post.shares || 0))}</span>}
+                          <span className="font-black text-emerald-400">
+                            <MousePointer2 size={10} className="inline mr-1"/>
+                            {formatNumberMax(Number(post.engagement || 0))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className={`w-full mt-6 py-3 rounded-xl text-center text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'bg-[#0b0d10] border border-gray-800 text-gray-500' : 'bg-gray-50 border border-gray-200 text-gray-500'}`}>
+            Top 5 {title} dari {apiSourceLabel}
+          </div>
+        </div>
+      );
+    }
+
+    if (platformKey !== 'web') {
+      return (
+        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm flex flex-col h-full`}>
+          <div className="flex justify-between items-center mb-6 border-b border-gray-500/10 pb-4">
+            <div className="flex items-center gap-3">
+              {icon}
+              <div>
+                <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h4>
+                <p className="text-[10px] text-gray-400 font-bold mt-1">Top 5 Engagement</p>
+              </div>
+            </div>
+            <Flame size={16} className="text-emerald-500" />
+          </div>
+          <div className="flex-1 flex items-center justify-center py-8 text-center text-gray-500 text-xs font-bold uppercase">
+            Belum ada data API
+          </div>
+        </div>
+      );
+    }
+
+    const platformContents = postedContents.filter(c => c.platforms?.includes(platformKey.toUpperCase())).sort((a, b) => Number(b[engagementKey] || 0) - Number(a[engagementKey] || 0));
     const top5Contents = platformContents.slice(0, 5);
 
     return (
@@ -383,7 +663,7 @@ export default function CommandCenter() {
 
   return (
     <div className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${isDarkMode ? 'bg-[#0b0d10] text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      
+      <DesktopNotificationBridge />
       {mobileMenuOpen && (
         <button
           type="button"
@@ -404,6 +684,8 @@ export default function CommandCenter() {
             { id: 'jobdesk', label: 'Jobdesk', icon: CheckSquare },
             { id: 'planning', label: 'Planning', icon: CalendarDays },
             { id: 'recap', label: 'Recap', icon: UploadCloud },
+            { id: 'library', label: 'Asset Konten', icon: FolderOpen },
+            { id: 'integrations', label: 'Integrasi', icon: Plug },
             { id: 'reports', label: 'Reports', icon: FileText },
           ].map((item) => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${activeTab === item.id ? 'bg-[#008234] text-white shadow-lg shadow-green-900/20' : isDarkMode ? 'text-gray-400 hover:bg-gray-800/40' : 'text-gray-500 hover:bg-gray-100/50'}`}>
@@ -612,19 +894,69 @@ export default function CommandCenter() {
           
           {activeTab === 'dashboard' && (
             <div className="animate-fadeIn space-y-8">
+              <div className={`inline-flex px-3 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest ${
+                isDarkMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'
+              }`}>
+                SUMBER DATA: API RESMI PLATFORM
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}><div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Reach</p><div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Eye size={16} /></div></div><h3 className={`text-4xl font-black tracking-tight mt-4 italic text-blue-400`}>{formatNumberMax(globalViews)}</h3><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Eye size={100} /></div></div>
-                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}><div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Eng.</p><div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl"><MousePointer2 size={16} /></div></div><h3 className={`text-4xl font-black tracking-tight mt-4 italic text-emerald-400`}>{formatNumberMax(globalEng)}</h3><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><MousePointer2 size={100} /></div></div>
-                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}><div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Postingan</p><div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl"><Send size={16} /></div></div><h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{postedContents.length}</h3><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Send size={100} /></div></div>
-                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}><div className="flex justify-between items-start"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Artikel Web</p><div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Globe size={16} /></div></div><h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{wpCount}</h3><div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Globe size={100} /></div></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Views</p>
+                    <div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Eye size={16} /></div>
+                  </div>
+                  <h3 className="text-4xl font-black tracking-tight mt-4 italic text-blue-400">{formatNumberMax(globalViews)}</h3>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">Tayangan / views</p>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Eye size={100} /></div>
+                </div>
+
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Reach</p>
+                    <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl"><TrendingUp size={16} /></div>
+                  </div>
+                  <h3 className="text-4xl font-black tracking-tight mt-4 italic text-cyan-400">{formatNumberMax(globalReach)}</h3>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">Jangkauan unik</p>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><TrendingUp size={100} /></div>
+                </div>
+
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grand Total Eng.</p>
+                    <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl"><MousePointer2 size={16} /></div>
+                  </div>
+                  <h3 className="text-4xl font-black tracking-tight mt-4 italic text-emerald-400">{formatNumberMax(globalEng)}</h3>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">Interaksi total</p>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><MousePointer2 size={100} /></div>
+                </div>
+
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{totalDashboardPostsLabel}</p>
+                    <div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl"><Send size={16} /></div>
+                  </div>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{totalDashboardPosts}</h3>
+                  <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mt-2">SUMBER DATA: API RESMI PLATFORM</p>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Send size={100} /></div>
+                </div>
+
+                <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/80' : 'bg-white border-gray-200'} shadow-sm relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Artikel Web</p>
+                    <div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><Globe size={16} /></div>
+                  </div>
+                  <h3 className={`text-4xl font-black tracking-tight mt-4 italic ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{wpCount}</h3>
+                  <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">pkbgarut.id</p>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><Globe size={100} /></div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[ { label: 'Website', icon: <BrandIcons.Web />, val: platformStats.web, sub: 'IMPRESSIONS' }, { label: 'Instagram', icon: <BrandIcons.IG />, val: platformStats.ig, sub: 'ENGAGEMENT' }, { label: 'Facebook', icon: <BrandIcons.FB />, val: platformStats.fb, sub: 'ENGAGEMENT' }, { label: 'TikTok', icon: <BrandIcons.TikTok />, val: platformStats.tiktok, sub: 'ENGAGEMENT' }, { label: 'X (Twitter)', icon: <BrandIcons.X />, val: platformStats.x, sub: 'ENGAGEMENT' }, { label: 'YT Shorts', icon: <BrandIcons.YT />, val: platformStats.yt, sub: 'ENGAGEMENT' } ].map((p, idx) => (
                   <div key={idx} className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${isDarkMode ? 'bg-[#12151a] border-gray-800' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center justify-between mb-3"><span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{p.label}</span>{p.icon}</div>
-                    <div><div className={`font-roboto text-xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(p.val)}</div><span className="text-[8px] font-black text-gray-500 uppercase tracking-widest block mt-1">{p.sub}</span></div>
+                    <div><div className={`font-roboto text-xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumberMax(p.val)}</div><span className="text-[8px] font-black text-gray-500 uppercase tracking-widest block mt-1">{p.sub}</span>{p.label === 'Facebook' && <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest block mt-1">SUMBER DATA: META API</span>}</div>
                   </div>
                 ))}
               </div>
@@ -638,7 +970,7 @@ export default function CommandCenter() {
                       <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tren Interaksi (30 Hari)</h4>
                       <div className="flex items-center space-x-3 text-[10px] font-bold">
                         <span className="flex items-center text-gray-400"><div className="w-2 h-2 bg-[#008234] rounded-full mr-1.5"></div> Engagement</span>
-                        <span className="flex items-center text-gray-400"><div className="w-2 h-2 bg-blue-500 rounded-full mr-1.5"></div> Views</span>
+                        <span className="flex items-center text-gray-400"><div className="w-2 h-2 bg-blue-500 rounded-full mr-1.5"></div> Reach</span>
                       </div>
                     </div>
                     <div className="h-64 w-full">
@@ -654,14 +986,14 @@ export default function CommandCenter() {
                           <YAxis domain={[0, 'auto']} hide={true} />
                           <Tooltip contentStyle={{ borderRadius: '15px', fontSize: '11px', backgroundColor: isDarkMode ? '#161920' : '#fff', borderColor: isDarkMode ? '#374151' : '#e5e7eb' }} />
                           <Area type="monotone" dataKey="eng" stroke="#008234" strokeWidth={3} fillOpacity={1} fill="url(#colorEng)" />
-                          <Line type="monotone" dataKey="views" stroke="#3B82F6" strokeWidth={2} dot={false} strokeDasharray="4 4" />
+                          <Line type="monotone" dataKey="reach" stroke="#3B82F6" strokeWidth={2} dot={false} strokeDasharray="4 4" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
                   <div className="space-y-6">
-                    <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={allContents} wpCount={wpCount} />
+                    <MonthlyGoals isDarkMode={isDarkMode} upcomingPlans={dashboardContentPool} wpCount={wpCount} />
                   </div>
 
                 </div>
@@ -669,7 +1001,7 @@ export default function CommandCenter() {
                 <div className="flex flex-col gap-6">
                   
                   <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
-                    <TargetTracker contents={allContents} isDarkMode={isDarkMode} />
+                    <TargetTracker contents={dashboardContentPool} isDarkMode={isDarkMode} />
                   </div>
                   
                   <div className={`flex-1 p-6 rounded-3xl border relative overflow-hidden ${isDarkMode ? 'bg-[#12151a] border-gray-800/60' : 'bg-white border-gray-200'} shadow-sm`}>
@@ -716,6 +1048,8 @@ export default function CommandCenter() {
 
           {activeTab === 'planning' && <PlanningForm isDarkMode={isDarkMode} onPlanAdded={fetchContentsAndStats} />}
           {activeTab === 'recap' && <RecapForm isDarkMode={isDarkMode} onRecapSuccess={fetchContentsAndStats} />}
+          {activeTab === 'library' && <ContentLibrary isDarkMode={isDarkMode} onContentSaved={fetchContentsAndStats} />}
+          {activeTab === 'integrations' && <PlatformIntegration isDarkMode={isDarkMode} onInsightsSynced={fetchContentsAndStats} />}
           {activeTab === 'reports' && <Reports isDarkMode={isDarkMode} contents={allContents} />}
           {activeTab === 'jobdesk' && (
             <div className={`p-12 text-center rounded-3xl border ${isDarkMode ? 'bg-[#12151a] border-gray-800 text-gray-400' : 'bg-white border-gray-200 text-gray-600'}`}>
@@ -755,7 +1089,7 @@ export default function CommandCenter() {
                     </thead>
                     <tbody className="text-[11px] font-bold divide-y divide-gray-500/10">
                       {postedContents
-                        .filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[selectedPlatformModal.engKey]) > 0))
+                        .filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase()))
                         .sort((a, b) => new Date(b.publish_date || '').getTime() - new Date(a.publish_date || '').getTime()) 
                         .map(p => (
                           <tr key={p.id} className="hover:bg-white/5 transition-colors">
@@ -767,7 +1101,7 @@ export default function CommandCenter() {
                       ))}
                     </tbody>
                   </table>
-                  {postedContents.filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase()) || (c.pillar === 'Imported Data' && Number(c[selectedPlatformModal.engKey]) > 0)).length === 0 && (
+                  {postedContents.filter(c => c.platforms?.includes(selectedPlatformModal.key.toUpperCase())).length === 0 && (
                     <div className="text-center py-12 text-gray-500 text-xs font-bold uppercase tracking-widest">
                       Tidak ada data yang ditemukan
                     </div>

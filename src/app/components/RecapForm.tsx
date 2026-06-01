@@ -338,6 +338,11 @@ export default function RecapForm({ isDarkMode = true, onRecapSuccess }: RecapFo
         <div className="text-center mb-10">
           <h2 className={`text-2xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Smart Bulk Sync Engine</h2>
           <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-bold">Unggah CSV, Sistem Akan Mengimpor Data Historis Secara Otomatis</p>
+          <p className={`inline-flex mt-4 px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest ${
+            isDarkMode ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'
+          }`}>
+            CSV hanya untuk arsip/manual backup. Dashboard utama memakai Meta API.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
